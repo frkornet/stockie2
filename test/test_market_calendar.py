@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import date
 from calendar import SATURDAY, SUNDAY
 
-from stockie.market_calendar import MarketCalendar
+from stockie.util.market_calendar import MarketCalendar
 
 class TestMarketCalendar:
     @pytest.fixture(scope="class")

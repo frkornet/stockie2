@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 from unittest.mock import MagicMock, patch
-from stockie.stock_price_ingestor import StockPriceIngestor
+from stockie.loaders.stock_price_ingestor import StockPriceIngestor
 
 class TestStockPriceIngestor:
     @pytest.fixture
@@ -34,9 +34,9 @@ class TestStockPriceIngestor:
     @pytest.fixture
     def ingestor(self, mock_conn, mock_db_config):
         with patch("psycopg2.connect", return_value=mock_conn), \
-             patch("stockie.stock_price_ingestor.DatabaseUtilities") as mock_util_class, \
-             patch("stockie.stock_price_ingestor.AuditWriter"), \
-             patch("stockie.stock_price_ingestor.CustomLogger"):
+             patch("stockie.loaders.stock_price_ingestor.DatabaseUtilities") as mock_util_class, \
+             patch("stockie.loaders.stock_price_ingestor.AuditWriter"), \
+             patch("stockie.loaders.stock_price_ingestor.CustomLogger"):
 
             mock_util = MagicMock()
             mock_util.table_exists.return_value = True

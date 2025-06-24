@@ -1,7 +1,7 @@
 import pytest
 import logging
 from unittest.mock import patch, MagicMock
-from stockie.custom_logger import CustomLogger
+from stockie.log.custom_logger import CustomLogger
 
 class TestCustomLogger:
 

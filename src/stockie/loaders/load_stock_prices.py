@@ -1,8 +1,8 @@
-from stockie.stock_price_ingestor import StockPriceIngestor
-from stockie.config_loader import ConfigLoader
-from stockie.custom_logger import CustomLogger
-from stockie.market_calendar import MarketCalendar
-from stockie.tickers import Tickers
+from stockie.loaders.stock_price_ingestor import StockPriceIngestor
+from stockie.loaders.config_loader import ConfigLoader
+from stockie.log.custom_logger import CustomLogger
+from stockie.util.market_calendar import MarketCalendar
+from stockie.util.tickers import Tickers
 import pandas as pd
 
 def load_stock_prices():

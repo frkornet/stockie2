@@ -1,7 +1,7 @@
 import pandas as pd
 import datetime as dt
 import requests
-from stockie.config_loader import ConfigLoader
+from stockie.loaders.config_loader import ConfigLoader
 
 class Tickers:
     def __init__(self, logger):

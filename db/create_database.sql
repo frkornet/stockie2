@@ -19,3 +19,12 @@ CREATE TABLE IF NOT EXISTS stock_price_audit (
     new_value FLOAT,
     change_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
+CREATE TABLE technical_indicators (
+    ticker TEXT,
+    date DATE,
+    indicator TEXT,
+    value DOUBLE PRECISION,
+    PRIMARY KEY (ticker, date, indicator)
+);

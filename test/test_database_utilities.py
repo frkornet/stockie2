@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock
-from stockie.database_utilities import DatabaseUtilities
+from stockie.db.database_utilities import DatabaseUtilities
 
 class TestDatabaseUtilities:
 
