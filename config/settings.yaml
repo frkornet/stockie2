@@ -1,0 +1,24 @@
+start_date: 2020-01-01
+delta_threshold: 0.0001
+
+log:
+  dir: /home/frkornet/repos/stockie2/logs/
+  filename: stock_price_ingestor.log
+  level: INFO
+  console: true
+
+db:
+  host: localhost
+  port: 5432
+  dbname: trading_db
+  user: frkornet
+
+tickers:
+  nyse: true
+  nyse_american: false
+  nyse_arca: false
+  sp500: true
+  nasdaq: false
+  nasdaq100: true
+  dow30: true
+  russell2000: false
