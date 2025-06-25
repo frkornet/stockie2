@@ -1,5 +1,7 @@
 from psycopg2 import sql
+from psycopg2.extras import execute_values
 from collections.abc import Iterable
+import pandas as pd
 
 class DatabaseUtilities:
     def __init__(self, conn):
@@ -24,3 +26,69 @@ class DatabaseUtilities:
 
         existing = {row[0] for row in self.cur.fetchall()}
         return all(name in existing for name in table_names)
+    
+    from typing import List
+
+    def get_unique_tickers(self) -> List[str]:
+        """
+        Returns a list of unique tickers from the stock_prices table.
+        """
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT DISTINCT ticker FROM stock_prices ORDER BY ticker;")
+            results = cur.fetchall()
+            return [row[0] for row in results]
+
+
+    def insert_indicator_series(self, series: pd.Series, ticker: str, indicator: str):
+        """
+        Inserts a time series into the technical_indicators table.
+
+        Parameters:
+            series (pd.Series): Indexed by date, containing indicator values.
+            ticker (str): The stock symbol, e.g. 'AAPL'.
+            indicator (str): The indicator name, e.g. 'sma_20'.
+        """
+        if not isinstance(series, pd.Series):
+            raise TypeError("Expected a pandas Series with datetime index and float values.")
+
+        data = [
+            (ticker, date.date(), indicator, float(value))
+            for date, value in series.dropna().items()
+        ]
+
+        if not data:
+            return  # nothing to insert
+
+        query = """
+            INSERT INTO technical_indicators (ticker, date, indicator, value)
+            VALUES %s
+            ON CONFLICT (ticker, date, indicator) DO UPDATE
+            SET value = EXCLUDED.value;
+        """
+
+        with self.conn.cursor() as cur:
+            execute_values(cur, query, data)
+            self.conn.commit()
+
+def fetch_price_data(self, ticker: str) -> pd.DataFrame:
+    """
+    Returns a DataFrame with date and close price for the given ticker.
+    """
+    query = """
+        SELECT date, close
+        FROM stock_prices
+        WHERE ticker = %s
+        ORDER BY date;
+    """
+    with self.conn.cursor() as cur:
+        cur.execute(query, (ticker,))
+        rows = cur.fetchall()
+
+    if not rows:
+        df = pd.DataFrame(columns=["date", "close"]).set_index("date")
+    else:
+        df = pd.DataFrame(rows, columns=["date", "close"]).set_index("date")
+        df.index = pd.to_datetime(df.index)
+    df.name = ticker
+
+    return df

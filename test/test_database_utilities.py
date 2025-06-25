@@ -4,6 +4,13 @@ from stockie.db.database_utilities import DatabaseUtilities
 
 class TestDatabaseUtilities:
 
+    # @pytest.fixture
+    # def mock_conn():
+    #     mock_cursor = MagicMock()
+    #     mock_conn = MagicMock()
+    #     mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+    #     return mock_conn, mock_cursor
+
     @pytest.fixture
     def mock_conn(self):
         mock_conn = MagicMock()
@@ -56,6 +63,28 @@ class TestDatabaseUtilities:
         db_util = DatabaseUtilities(mock_conn)
         with pytest.raises(ValueError):
             db_util.table_exists(["stock_prices", 123])
+
+    def test_get_unique_tickers(self, mock_conn):
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = [('AAPL',), ('MSFT',), ('NVDA',)]
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        db_util = DatabaseUtilities(mock_conn)
+        tickers = db_util.get_unique_tickers()
+
+        mock_cursor.execute.assert_called_once_with("SELECT DISTINCT ticker FROM stock_prices ORDER BY ticker;")
+        assert tickers == ["AAPL", "MSFT", "NVDA"]
+
+    def test_get_unique_tickers_empty(self, mock_conn):
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = []
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        db_util = DatabaseUtilities(mock_conn)
+        tickers = db_util.get_unique_tickers()
+
+        mock_cursor.execute.assert_called_once_with("SELECT DISTINCT ticker FROM stock_prices ORDER BY ticker;")
+        assert tickers == []
 
 if __name__ == "__main__":
     import sys

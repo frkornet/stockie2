@@ -1,4 +1,4 @@
-start_date: 2020-01-01
+start_date: 2000-01-01
 delta_threshold: 0.0001
 
 log:
@@ -22,3 +22,90 @@ tickers:
   nasdaq100: true
   dow30: true
   russell2000: false
+
+indicators:
+  trend:
+    sma:
+      enabled: true
+      window: [20, 50, 200]
+    ema:
+      enabled: true
+      window: [20, 50, 200]
+    macd:
+      enabled: true
+      fast_window: [12, 24]
+      slow_window: [26, 52]
+      signal_window: [9, 12]
+    adx:
+      enabled: true
+      window: [14, 21]
+
+  momentum:
+    rsi:
+      enabled: true
+      window: 14
+    stoch:
+      enabled: true
+      k_window: 14
+      d_window: 3
+    cci:
+      enabled: false  # turn off
+      window: 20
+    stoch: 
+      enabled: true
+      k_window: 14
+      d_window: 3
+    cci: 
+      enabled: true
+      window: 20
+  
+  volatility:
+    atr:
+      enabled: true
+      window: 14
+    true_range:
+      enabled: true
+      window: 14
+    bollinger:
+      enabled: true
+      window: 20
+      std_dev: 2.0
+    keltner:
+      enabled: true
+      window: [20, 50]
+      multiplier: [2.0, 2.5]
+  
+  volume:
+    obv:
+      enabled: true
+    cmf:
+      enabled: true
+      window: [20, 50]
+    vema:
+      enabled: true
+      window: 30
+  
+  risk:
+    beta:
+      enabled: false            # not yet working
+      benchmark: 'SPY'  # S&P 500 as benchmark
+      window: 63
+    rolling_volatility:
+      enabled: true
+      window: [21, 63]
+    sharpe_ratio:
+      enabled: true
+      window: [21, 63]
+      risk_free_rate: 0.01
+    max_drawdown:
+      enabled: true
+      window: 252
+  
+  performance:
+    rolling_cagr:
+      enabled: true
+      window: [63, 252]
+
+    hit_ratio:
+      enabled: true
+      window: 21
