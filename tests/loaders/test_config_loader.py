@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import mock_open, patch
-from stockie.loaders.config_loader import ConfigLoader
+from stockie.loaders import ConfigLoader
 
 class TestConfigLoader:
     @pytest.fixture(autouse=True)

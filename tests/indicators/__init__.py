@@ -1,0 +1,1 @@
+from tests.indicators.fixtures import aapl_df, tsla_df, sp500_df

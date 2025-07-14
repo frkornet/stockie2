@@ -1,6 +1,6 @@
 import pandas as pd
 
-class BaseIndicator:
+class BaseIndicators:
     def __init__(self, df: pd.DataFrame):
         """
         Initialize with a price DataFrame. Calls set_data()
@@ -57,3 +57,8 @@ class BaseIndicator:
             raise TypeError(f"{label} must be a Series, DataFrame, or scalar.")
 
         return series
+       
+    def _build_indicator_name(self, base: str, *args) -> str:
+        """Generates standardized names like 'sma_20' or 'macd_12_26_9'."""
+        parts = [base] + [str(a).replace('.', '_') for a in args]
+        return "_".join(parts)

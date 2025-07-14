@@ -18,7 +18,7 @@ tickers:
   nyse_american: false
   nyse_arca: false
   sp500: true
-  nasdaq: false
+  nasdaq: true
   nasdaq100: true
   dow30: true
   russell2000: false

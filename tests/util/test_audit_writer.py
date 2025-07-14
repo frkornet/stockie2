@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock
-from stockie.util.audit_writer import AuditWriter
+from stockie.util import AuditWriter
 
 class TestAuditWriter:
 

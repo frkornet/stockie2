@@ -85,7 +85,7 @@ class CalculateIndicators:
             for name, series in result.items():
                 self.db_util.insert_indicator_series(series, ticker, name)
 
-    def _resolve_dependencies(self, config: dict) -> dict[str, pd.Series]:
+    def _resolve_dependencies(self, config: dict) -> dict[str, pd.DataFrame]:
         """
         Scans config for keys containing 'benchmark' and loads those tickers.
         Returns a dict of {ticker: return_series}
@@ -101,7 +101,7 @@ class CalculateIndicators:
                     if "benchmark" in key.lower() and isinstance(val, str) and val not in cache:
                         df = self.db_util.fetch_price_data(val)
                         if not df.empty and "close" in df.columns:
-                            cache[val] = df["close"].pct_change()
+                            cache[val] = df
 
         return cache
 

@@ -4,9 +4,9 @@ import psycopg2
 from psycopg2.extras import execute_values
 from datetime import datetime, timedelta, date
 
-from stockie.util.audit_writer import AuditWriter
-from stockie.db.database_utilities import DatabaseUtilities
-from stockie.log.custom_logger import CustomLogger
+from stockie.util import AuditWriter
+from stockie.db import DatabaseUtilities
+from stockie.log import CustomLogger
 
 logger = CustomLogger().get_logger()
 
@@ -161,6 +161,9 @@ class StockPriceIngestor:
     def download(self, tickers):
         compare_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
 
+        self.logger.info(f"Starting stock price download for {len(tickers)} tickers...")
+        self.logger.info(f"{tickers=}")
+
         for ticker in tickers if isinstance(tickers, list) else [tickers]:
             try:
                 ticker = ticker.upper()
@@ -175,6 +178,8 @@ class StockPriceIngestor:
 
             except Exception as e:
                 self.logger.exception(f"{ticker}: ingestion failed - {e}")
+
+        self.logger.info("Stock price download completed.")
 
     def close(self):
         self.cur.close()

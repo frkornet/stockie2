@@ -1,7 +1,10 @@
 import pandas as pd
-from stockie.indicators.base import BaseIndicator
+import numpy as np
+from stockie.indicators import BaseIndicators
 
-class RiskIndicator(BaseIndicator):
+class RiskIndicators(BaseIndicators):
+    def __init__(self, df: pd.DataFrame):
+        super().__init__(df)
 
     def alpha(
         self,
@@ -27,7 +30,7 @@ class RiskIndicator(BaseIndicator):
         asset_returns = self.df["close"].pct_change()
 
         # Align inputs
-        aligned = pd.concat([asset_returns, benchmark_returns], axis=1).dropna()
+        aligned = pd.concat([asset_returns, benchmark_returns], axis=1)
         asset_aligned = aligned.iloc[:, 0]
         bench_aligned = aligned.iloc[:, 1]
 
@@ -51,7 +54,7 @@ class RiskIndicator(BaseIndicator):
         # Output label
         bench_name = getattr(benchmark, "name", "benchmark")
         rf_name = getattr(risk_free_benchmark, "name", "rf")
-        alpha_series.name = f"alpha_{window}_{bench_name}_{rf_name}"
+        alpha_series.name = self._build_indicator_name("alpha", window, bench_name, rf_name)
 
         return alpha_series
 
@@ -80,7 +83,9 @@ class RiskIndicator(BaseIndicator):
         asset_returns = self.df["close"].pct_change()
 
         # Align series
-        aligned = pd.concat([asset_returns, benchmark_returns], axis=1).dropna()
+        assert isinstance(asset_returns, pd.Series) and isinstance(benchmark_returns, pd.Series), \
+            'Both asset and benchmark must be type Series.'
+        aligned = pd.concat([asset_returns, benchmark_returns], axis=1)
         asset_aligned = aligned.iloc[:, 0]
         bench_aligned = aligned.iloc[:, 1]
 
@@ -89,7 +94,7 @@ class RiskIndicator(BaseIndicator):
         var = bench_aligned.rolling(window=window).var()
         beta_series = cov / var.replace(0, pd.NA)
 
-        prefix = f"beta_{window}_{full_benchmark.name}"
+        prefix = self._build_indicator_name("beta", window, full_benchmark.name)
         return pd.DataFrame({
             f"{prefix}": beta_series,
             f"{prefix}_cov": cov,
@@ -100,7 +105,7 @@ class RiskIndicator(BaseIndicator):
         """Annualized rolling standard deviation of returns"""
         returns = self.df["close"].pct_change()
         vol = returns.rolling(window=window).std() * (252 ** 0.5)
-        vol.name = f"rolling_volatility_{window}"
+        vol.name = self._build_indicator_name("rolling_volatility", window)
         return vol
 
     def downside_deviation(self, window: int = 21, threshold: float = 0.0) -> pd.Series:
@@ -108,7 +113,7 @@ class RiskIndicator(BaseIndicator):
         returns = self.df["close"].pct_change()
         downside = (returns[returns < threshold] - threshold) ** 2
         dd = (downside.rolling(window=window).mean() * 252) ** 0.5 
-        dd.name = f"downside_deviation_{window}"
+        dd.name = self._build_indicator_name("downside_deviation", window)
         return dd
 
     def sharpe(
@@ -134,7 +139,7 @@ class RiskIndicator(BaseIndicator):
         sharpe = (mean_excess / std_excess) * (252 ** 0.5)
 
         rf_name = getattr(risk_free_rate, "name", "rf")
-        sharpe.name = f"sharpe_ratio_{window}_{rf_name}"
+        sharpe.name = self._build_indicator_name("sharpe", window, rf_name)
 
         return sharpe
 
@@ -157,12 +162,14 @@ class RiskIndicator(BaseIndicator):
         )
 
         excess_return = returns - target
-        downside = (returns[returns < target] - target) ** 2
+        excess = returns - target
+        downside = (excess.where(excess < 0, 0)) ** 2
+
         semi_dev = downside.rolling(window).mean() ** 0.5 * (252 ** 0.5)
 
         sortino_ratio = (excess_return.rolling(window).mean() * 252) / semi_dev.replace(0, pd.NA)
         target_name = getattr(target_return, "name", "target")
-        sortino_ratio.name = f"sortino_ratio_{window}_{target_name}"
+        sortino_ratio.name = self._build_indicator_name("sortino_ratio", window, target_name)
 
         return sortino_ratio
     
@@ -171,14 +178,14 @@ class RiskIndicator(BaseIndicator):
         roll_max = self.df["close"].rolling(window=window, min_periods=1).max()
         drawdown = self.df["close"] / roll_max - 1
         mdd = drawdown.rolling(window=window, min_periods=1).min()
-        mdd.name = f"mdd_{window}"
+        mdd.name = self._build_indicator_name("mdd", window)
         return mdd
 
-    def calmar_ratio(self, window: int = 252) -> pd.Series:
+    def calmar(self, window: int = 252) -> pd.Series:
         """Calmar ratio = CAGR / |Max Drawdown| (approximate version using rolling returns)"""
         prices = self.df["close"]
         cagr = (prices / prices.shift(window)) ** (252 / window) - 1
         mdd = self.max_drawdown(window=window).abs()
-        calmar = cagr / mdd.replace(0, pd.NA)
-        calmar.name = f"calmar_ratio_{window}"
+        calmar = cagr / mdd.replace(0, np.nan)
+        calmar.name = self._build_indicator_name("calmar", window)
         return calmar

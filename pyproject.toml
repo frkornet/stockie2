@@ -62,5 +62,5 @@ package-dir = { "" = "src" }
 where = ["src"]
 
 [tool.pytest.ini_options]
-testpaths = ["test"]
-python_files = ["*Test.py"]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
