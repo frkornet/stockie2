@@ -56,5 +56,5 @@ class TestVolumeIndicators:
             [None,      None,      None,      None,      -0.297854, -0.404666, -0.481993, -0.542862, 
              -0.592326, -0.633493, -0.662325, -0.687887, -0.711018, -0.731144, -0.749085]
         , index=tsla_df.index, name="cmf_5")
-
+        
         pd.testing.assert_series_equal(result, expected)

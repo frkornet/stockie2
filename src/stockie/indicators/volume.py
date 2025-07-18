@@ -20,7 +20,12 @@ class VolumeIndicators(BaseIndicators):
         return vma
 
     def pvt(self) -> pd.Series:
-        """Calculate the Price-Volume Trend (PVT) for the price data"""
+        """
+        Calculate the Price-Volume Trend (PVT) for the price data
+        
+        See: https://www.stockmaniacs.net/price-volume-trend-indicator/ for more info and details
+        on the calculation.
+        """
         close = self.df["close"]
         volume = self.df["volume"]
         pct_change = close.pct_change()
@@ -40,16 +45,21 @@ class VolumeIndicators(BaseIndicators):
         return obv
 
     def cmf(self, window: int = 21) -> pd.Series:
-        """Calculate the Chaikin Money Flow (CMF) for the price data."""
+        """
+        Calculate the Chaikin Money Flow (CMF) for the price data.
+        
+        See: https://tradingtuitions.com/chaikin-money-flow-excel-sheet-2/ for more details on the indiccator
+        and its calculation.
+        """
         high = self.df["high"]
         low = self.df["low"]
         close = self.df["close"]
         volume = self.df["volume"]
 
         denom = (high - low).replace(0, np.nan)
-        clv = (((close - low) - (high - close)) / denom).fillna(0)
+        money_flow_multiplier = (((close - low) - (high - close)) / denom).fillna(0)
 
-        cmf = (clv * volume).rolling(window=window).sum() / volume.rolling(window=window).sum()
+        cmf = (money_flow_multiplier * volume).rolling(window=window).sum() / volume.rolling(window=window).sum()
         cmf.name = self._build_indicator_name("cmf", window)
         return cmf
 
