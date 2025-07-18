@@ -47,9 +47,9 @@ class BaseIndicators:
         if isinstance(obj, pd.DataFrame):
             if "close" not in obj.columns:
                 raise ValueError(f"{label} DataFrame must contain a 'close' column.")
-            series = obj["close"].reindex(index).fillna(method="ffill")
+            series = obj["close"].reindex(index).ffill()
         elif isinstance(obj, pd.Series):
-            series = obj.reindex(index).fillna(method="ffill")
+            series = obj.reindex(index).ffill()
         elif isinstance(obj, (int, float)):
             value = obj / 252 if dailyize else obj
             series = pd.Series(value, index=index)

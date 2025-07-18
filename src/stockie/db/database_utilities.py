@@ -70,25 +70,25 @@ class DatabaseUtilities:
             execute_values(cur, query, data)
             self.conn.commit()
 
-def fetch_price_data(self, ticker: str) -> pd.DataFrame:
-    """
-    Returns a DataFrame with date and close price for the given ticker.
-    """
-    query = """
-        SELECT date, close
-        FROM stock_prices
-        WHERE ticker = %s
-        ORDER BY date;
-    """
-    with self.conn.cursor() as cur:
-        cur.execute(query, (ticker,))
-        rows = cur.fetchall()
+    def fetch_price_data(self, ticker: str) -> pd.DataFrame:
+        """
+        Returns a DataFrame with date and close price for the given ticker.
+        """
+        query = """
+            SELECT date, close
+            FROM stock_prices
+            WHERE ticker = %s
+            ORDER BY date;
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(query, (ticker,))
+            rows = cur.fetchall()
 
-    if not rows:
-        df = pd.DataFrame(columns=["date", "close"]).set_index("date")
-    else:
-        df = pd.DataFrame(rows, columns=["date", "close"]).set_index("date")
-        df.index = pd.to_datetime(df.index)
-    df.name = ticker
+        if not rows:
+            df = pd.DataFrame(columns=["date", "close"]).set_index("date")
+        else:
+            df = pd.DataFrame(rows, columns=["date", "close"]).set_index("date")
+            df.index = pd.to_datetime(df.index)
+        df.name = ticker
 
-    return df
+        return df
