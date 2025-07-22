@@ -13,30 +13,30 @@ class TestRiskIndicators:
 
         expected = pd.Series([
             None,     None,     None,     None,     None, 
-            0.012378, 0.012336, 0.007429, 0.001286, 0.005987, 0.005883, 0.002725, 0.000163, 0.003112, -0.000061, 
+            0.012379, 0.012336, 0.007429, 0.001286, 0.005987, 0.005883, 0.002725, 0.000162, 0.003112, -0.000061, 
         ], index=tsla_df.index, name="alpha_5_sp500_rf")
 
         pd.testing.assert_series_equal(result, expected)
 
-    def test_beta_tsla(self, tsla_df):
-        benchmark = tsla_df["close"] + 1.0
+    def test_beta_tsla(self, tsla_df, sp500_df):
+        benchmark = sp500_df["close"]
         benchmark.name = "sp500"
         ind = RiskIndicators(tsla_df)
         result = ind.beta(benchmark=benchmark, window=5).round(6)
 
         expected_beta = pd.Series([
-            None,     None,     None,     None,     None, 
-            1.009855, 1.009770, 1.009711, 1.009626, 1.009593, 1.009465, 1.009350, 1.009252, 1.009177, 1.009177, 
+            None,      None,      None,     None,     None, 
+            -0.749694, -0.776098, 0.219774, 1.095764, 1.425463, 1.409894, 1.531128, 1.925292, 1.603589, 1.614775, 
         ], index=tsla_df.index, name="beta_5_sp500")
 
         expected_cov = pd.Series([
             None,     None,     None,     None,     None, 
-            0.000260, 0.000255, 0.000252, 0.000248, 0.000155, 0.000151, 0.000199, 0.000144, 0.000125, 0.000125, 
+            -0.000058, -0.000060, 0.000025, 0.000082, 0.000107, 0.000105, 0.000100, 0.000053, 0.000044, 0.000044,
         ], index=tsla_df.index, name="beta_5_sp500_cov")
 
         expected_var = pd.Series([
             None,     None,     None,     None,     None, 
-            0.000257, 0.000253, 0.000250, 0.000245, 0.000153, 0.000149, 0.000197, 0.000143, 0.000124, 0.000124, 
+            0.000078, 0.000077, 0.000114, 0.000075, 0.000075, 0.000075, 0.000065, 0.000028, 0.000027, 0.000027,
         ], index=tsla_df.index, name="beta_5_sp500_var") 
 
         pd.testing.assert_series_equal(result["beta_5_sp500"], expected_beta)
@@ -71,19 +71,21 @@ class TestRiskIndicators:
 
         expected = pd.Series([
             None,        None,        None,        None,        None,
-            1007.291473, 1017.006705, 1026.718711, 1036.427492, 1046.13305 
+            1007.613100, 1017.334671, 1027.053079, 1036.768324, 1046.480406, 
         ], index=aapl_df.index, name="sharpe_5_rf")
 
         pd.testing.assert_series_equal(result, expected)
 
     def test_sortino_tsla(self, tsla_df):
         ind = RiskIndicators(tsla_df)
-        result = ind.sortino(window=5, target_return=0.0).round(6)
+        result = ind.sortino(window=2, target_return=0.0).round(6)
 
+        expected_index = [
+            pd.to_datetime('2024-01-03'), pd.to_datetime('2024-01-05'), pd.to_datetime('2024-01-08'), pd.to_datetime('2024-01-12')
+        ]
         expected = pd.Series([
-            None,       None,      None,      None,      None,
-            20.528190, 20.132400, 20.713632, 20.318027, 43.494508, 42.674764, 15.382291, 43.864143, 36.024766, 35.698947, 
-        ], index=tsla_df.index, name="sortino_ratio_5_target")
+            None, 8.211251, 8.123382, 8.077411, 
+        ], index=expected_index, name="sortino_ratio_2_target")
 
         pd.testing.assert_series_equal(result, expected)
 

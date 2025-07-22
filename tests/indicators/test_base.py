@@ -55,8 +55,9 @@ class TestBaseIndicators:
 
     def test_normalize_scalar_with_aapl(self, aapl_df):
         ind = BaseIndicators(aapl_df)
-        out = ind._normalize_series_input(252, ind.df.index, dailyize=True)
-        assert pytest.approx(out.iloc[0]) == 1.0
+        rate = 0.04
+        out = ind._normalize_series_input((1+rate)**252, ind.df.index, dailyize=True).round(6)
+        assert pytest.approx(out.iloc[0]) == rate
 
     def test_normalize_series_with_tsla(self, tsla_df):
         ind = BaseIndicators(tsla_df)

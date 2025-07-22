@@ -102,14 +102,25 @@ class RiskIndicators(BaseIndicators):
         })
     
     def rolling_volatility(self, window: int = 21) -> pd.Series:
-        """Annualized rolling standard deviation of returns"""
+        """
+        Annualized rolling standard deviation of returns.
+        
+        NB: currently this only uses simple returns. Longer term we need to
+        support log returns as well.
+        """
         returns = self.df["close"].pct_change()
         vol = returns.rolling(window=window).std() * (252 ** 0.5)
         vol.name = self._build_indicator_name("rolling_volatility", window)
         return vol
 
     def downside_deviation(self, window: int = 21, threshold: float = 0.0) -> pd.Series:
-        """Downside deviation (semi-deviation) of returns below threshold (e.g., 0)"""
+        """
+        Downside deviation (semi-deviation) of returns below threshold (e.g., 0)
+        
+        NB: rows above threshold are filtered out during calculation. As a result, the
+        output is a subset of the input index. Only rows that are below the threshold
+        will be returned  The first window-1 rows will be np.nan / None.
+        """
         returns = self.df["close"].pct_change()
         downside = (returns[returns < threshold] - threshold) ** 2
         dd = (downside.rolling(window=window).mean() * 252) ** 0.5 
@@ -149,12 +160,13 @@ class RiskIndicators(BaseIndicators):
         target_return: float | pd.Series | pd.DataFrame = 0.0
     ) -> pd.Series:
         """
-        Computes the rolling Sortino Ratio.
-        Measures excess return per unit of downside risk.
+        Rolling Sortino Ratio using excess returns and full-index downside deviation
+        
+        NB: the correct way to annualize mean_excess is to calculate it as follows:
+        mean_excess = (1 + excess_return.rolling(window).mean()) ** 252 - 1
 
-        Parameters:
-        - window: Lookback window in trading days
-        - target_return: scalar, Series, or DataFrame with 'close' column
+        However, doing so would increase the mean_excess and it is better to be conservative.
+        This is also, how others are typically calculating the Sortino ratio.
         """
         returns = self.df["close"].pct_change()
         target = self._normalize_series_input(
@@ -162,17 +174,13 @@ class RiskIndicators(BaseIndicators):
         )
 
         excess_return = returns - target
-        excess = returns - target
-        downside = (excess.where(excess < 0, 0)) ** 2
+        mean_excess = excess_return.rolling(window).mean() * 252
+        semi_dev = self.downside_deviation(window=window, threshold=target_return)
 
-        semi_dev = downside.rolling(window).mean() ** 0.5 * (252 ** 0.5)
-
-        sortino_ratio = (excess_return.rolling(window).mean() * 252) / semi_dev.replace(0, pd.NA)
-        target_name = getattr(target_return, "name", "target")
-        sortino_ratio.name = self._build_indicator_name("sortino_ratio", window, target_name)
-
+        sortino_ratio = mean_excess[semi_dev.index] / semi_dev.replace(0, pd.NA)
+        sortino_ratio.name = self._build_indicator_name("sortino_ratio", window, getattr(target_return, "name", "target"))
         return sortino_ratio
-    
+
     def max_drawdown(self, window: int = 252) -> pd.Series:
         """Rolling maximum drawdown over a lookback window"""
         roll_max = self.df["close"].rolling(window=window, min_periods=1).max()

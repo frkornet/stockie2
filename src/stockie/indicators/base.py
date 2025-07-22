@@ -51,7 +51,7 @@ class BaseIndicators:
         elif isinstance(obj, pd.Series):
             series = obj.reindex(index).ffill()
         elif isinstance(obj, (int, float)):
-            value = obj / 252 if dailyize else obj
+            value = ( (1 + obj) ** (1 / 252)) - 1.0 if dailyize else obj
             series = pd.Series(value, index=index)
         else:
             raise TypeError(f"{label} must be a Series, DataFrame, or scalar.")

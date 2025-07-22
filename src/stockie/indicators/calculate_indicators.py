@@ -36,7 +36,7 @@ class CalculateIndicators:
             for family, indicators in self.indicator_config.items():
                 try:
                     module = import_module(f"stockie.indicators.{family}")
-                    cls = getattr(module, f"{family.capitalize()}Indicator")
+                    cls = getattr(module, f"{family.capitalize()}Indicators")
                 except (ModuleNotFoundError, AttributeError):
                     continue
 
