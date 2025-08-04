@@ -36,14 +36,3 @@ class TestPerformanceIndicators:
         ], index=tsla_df.index, name="dd_duration")
 
         pd.testing.assert_series_equal(result, expected)
-
-    def test_volatility_annualized_expected(self, tsla_df):
-        ind = PerformanceIndicators(tsla_df)
-        result = ind.volatility_annualized(window=5).round(6)
-
-        expected = pd.Series([
-            np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.257026, 0.254808, 0.253203, 
-            0.251017, 0.198482, 0.195833, 0.225000, 0.191385, 0.178393, 0.178400,
-        ], index=tsla_df.index, name="volatility_ann_5")
-
-        pd.testing.assert_series_equal(result, expected)

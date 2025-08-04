@@ -3,9 +3,11 @@ import numpy as np
 from stockie.indicators import BaseIndicators
 
 class RiskIndicators(BaseIndicators):
-    def __init__(self, df: pd.DataFrame):
-        super().__init__(df)
+    days_per_year = 252
 
+    def __init__(self, df: pd.DataFrame, horizon_period: int = days_per_year):
+        super().__init__(df, horizon_period=horizon_period)
+        
     def alpha(
         self,
         window: int = 63,
@@ -109,7 +111,7 @@ class RiskIndicators(BaseIndicators):
         support log returns as well.
         """
         returns = self.df["close"].pct_change()
-        vol = returns.rolling(window=window).std() * (252 ** 0.5)
+        vol = returns.rolling(window=window).std() * (self.horizon_period ** 0.5)
         vol.name = self._build_indicator_name("rolling_volatility", window)
         return vol
 
@@ -123,7 +125,7 @@ class RiskIndicators(BaseIndicators):
         """
         returns = self.df["close"].pct_change()
         downside = (returns[returns < threshold] - threshold) ** 2
-        dd = (downside.rolling(window=window).mean() * 252) ** 0.5 
+        dd = (downside.rolling(window=window).mean() * self.horizon_period) ** 0.5 
         dd.name = self._build_indicator_name("downside_deviation", window)
         return dd
 
@@ -147,7 +149,7 @@ class RiskIndicators(BaseIndicators):
         excess = returns - rf
         mean_excess = excess.rolling(window).mean()
         std_excess = excess.rolling(window).std()
-        sharpe = (mean_excess / std_excess) * (252 ** 0.5)
+        sharpe = (mean_excess / std_excess) * (self.horizon_period ** 0.5)
 
         rf_name = getattr(risk_free_rate, "name", "rf")
         sharpe.name = self._build_indicator_name("sharpe", window, rf_name)
@@ -163,7 +165,7 @@ class RiskIndicators(BaseIndicators):
         Rolling Sortino Ratio using excess returns and full-index downside deviation
         
         NB: the correct way to annualize mean_excess is to calculate it as follows:
-        mean_excess = (1 + excess_return.rolling(window).mean()) ** 252 - 1
+        mean_excess = (1 + excess_return.rolling(window).mean()) ** self.horizon_period - 1
 
         However, doing so would increase the mean_excess and it is better to be conservative.
         This is also, how others are typically calculating the Sortino ratio.
@@ -174,14 +176,14 @@ class RiskIndicators(BaseIndicators):
         )
 
         excess_return = returns - target
-        mean_excess = excess_return.rolling(window).mean() * 252
+        mean_excess = excess_return.rolling(window).mean() * self.horizon_period
         semi_dev = self.downside_deviation(window=window, threshold=target_return)
 
         sortino_ratio = mean_excess[semi_dev.index] / semi_dev.replace(0, pd.NA)
         sortino_ratio.name = self._build_indicator_name("sortino_ratio", window, getattr(target_return, "name", "target"))
         return sortino_ratio
 
-    def max_drawdown(self, window: int = 252) -> pd.Series:
+    def max_drawdown(self, window: int = days_per_year) -> pd.Series:
         """Rolling maximum drawdown over a lookback window"""
         roll_max = self.df["close"].rolling(window=window, min_periods=1).max()
         drawdown = self.df["close"] / roll_max - 1
@@ -189,10 +191,10 @@ class RiskIndicators(BaseIndicators):
         mdd.name = self._build_indicator_name("mdd", window)
         return mdd
 
-    def calmar(self, window: int = 252) -> pd.Series:
+    def calmar(self, window: int = days_per_year) -> pd.Series:
         """Calmar ratio = CAGR / |Max Drawdown| (approximate version using rolling returns)"""
         prices = self.df["close"]
-        cagr = (prices / prices.shift(window)) ** (252 / window) - 1
+        cagr = (prices / prices.shift(window)) ** (self.horizon_period / window) - 1
         mdd = self.max_drawdown(window=window).abs()
         calmar = cagr / mdd.replace(0, np.nan)
         calmar.name = self._build_indicator_name("calmar", window)

@@ -30,12 +30,3 @@ class PerformanceIndicators(BaseIndicators):
         duration = drawdown.astype(int).groupby((~drawdown).cumsum()).cumsum()
         duration.name = self._build_indicator_name("dd_duration")
         return duration
-
-    def volatility_annualized(self, window: int = 21) -> pd.Series:
-        """
-        Annualized rolling volatility of returns.
-        """
-        returns = self.df["close"].pct_change()
-        vol = returns.rolling(window).std() * (252 ** 0.5)
-        vol.name = self._build_indicator_name("volatility_ann", window)
-        return vol

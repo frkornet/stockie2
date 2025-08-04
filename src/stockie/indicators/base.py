@@ -1,12 +1,15 @@
 import pandas as pd
 
 class BaseIndicators:
-    def __init__(self, df: pd.DataFrame):
+    def __init__(self, df: pd.DataFrame, horizon_period: int = 252):
         """
         Initialize with a price DataFrame. Calls set_data()
         to validate and assign the time series.
         """
         self.set_data(df)
+        if not isinstance(horizon_period, int) or horizon_period <= 0:
+            raise ValueError("Horizon period must be a positive integer.")
+        self.horizon_period = horizon_period
 
     def set_data(self, df: pd.DataFrame):
         """
