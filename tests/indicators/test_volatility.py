@@ -41,6 +41,17 @@ class TestVolatilityIndicators:
 
         pd.testing.assert_series_equal(result, expected)
 
+    def test_max_tr_values_tsla(self, tsla_df):
+        ind = VolatilityIndicators(tsla_df)
+        result = ind.max_tr(window=3).round(6)
+
+        expected = pd.Series([
+            None, None, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0,
+            3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0
+        ], index=tsla_df.index, name="max_tr_3")
+
+        pd.testing.assert_series_equal(result, expected)
+
     def test_atr_values_tsla(self, tsla_df):
         ind = VolatilityIndicators(tsla_df)
         result = ind.atr(window=5).round(6)

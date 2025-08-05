@@ -37,7 +37,14 @@ class VolatilityIndicators(BaseIndicators):
 
         tr.name = self._build_indicator_name("tr")
         return tr
-
+    
+    def max_tr(self, window: int = 14) -> pd.Series:
+        """ Calculate the maximum True Range over a rolling window."""
+        tr = self.tr()
+        tr_max = tr.rolling(window=window).max()
+        tr_max.name = self._build_indicator_name("max_tr", window)
+        return tr_max
+    
     def atr(self, window: int = 14) -> pd.Series:
         """ Calculate the Average True Range (ATR) for the price data."""
         tr = self.tr()

@@ -64,3 +64,16 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+
+[tool.coverage.run]
+branch = true
+source = ["stockie"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+include = ["src/stockie/*"]
+omit = []
+
+[tool.coverage.html]
+directory = "htmlcov"

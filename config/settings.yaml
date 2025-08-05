@@ -24,6 +24,61 @@ tickers:
   russell2000: false
 
 indicators:
+  momentum:
+    rsi:
+      enabled: true
+      window: 14
+    stoch:
+      enabled: true
+      k_window: 14
+      d_window: 3
+    cci:
+      enabled: true
+      window: 20
+    momentum:
+      enabled: true
+      window: 10
+
+  performance:
+    daily_returns:
+      enabled: true
+    cumulative_returns:
+      enabled: true
+    drawdown_duration:
+      enabled: true
+
+  risk:
+    alpha:
+      enabled: true
+      benchmark: 'SPY'
+      window: [63, 252]
+      risk_free_benchmark: 0.04
+    beta:
+      enabled: true
+      benchmark: 'SPY'
+      window: [63, 252]
+    rolling_volatility:
+      enabled: true
+      window: [21, 63]
+    downside_deviation:
+      enabled: true
+      window: [21, 63]
+      threshold: 0.0
+    sharpe:
+      enabled: true
+      window: [21, 63]
+      risk_free_rate: 0.04
+    sortino:
+      enabled: true
+      window: [21, 63]
+      target_return: 0.0
+    max_drawdown:
+      enabled: true
+      window: 252
+    calmar:
+      enabled: true
+      window: 252
+  
   trend:
     sma:
       enabled: true
@@ -39,73 +94,36 @@ indicators:
     adx:
       enabled: true
       window: [14, 21]
-
-  momentum:
-    rsi:
-      enabled: true
-      window: 14
-    stoch:
-      enabled: true
-      k_window: 14
-      d_window: 3
-    cci:
-      enabled: false  # turn off
-      window: 20
-    stoch: 
-      enabled: true
-      k_window: 14
-      d_window: 3
-    cci: 
-      enabled: true
-      window: 20
-  
+ 
   volatility:
-    atr:
-      enabled: true
-      window: 14
-    true_range:
-      enabled: true
-      window: 14
     bollinger:
       enabled: true
-      window: 20
-      std_dev: 2.0
-    keltner:
+      window: [21, 63]
+      std_dev: [2.0, 2.0]
+    tr:
       enabled: true
-      window: [20, 50]
-      multiplier: [2.0, 2.5]
-  
+    max_tr:
+      enabled: true
+      window: [21, 63]
+    atr:
+      enabled: true
+      window: [21, 63]
+    stddev:
+      enabled: true
+      window: [21, 63]
+
   volume:
+    vsma:
+      enabled: true
+      window: [21, 63]
+    vema:
+      enabled: true
+      window: [21, 63]
+    pvt:
+      enabled: true
     obv:
       enabled: true
     cmf:
       enabled: true
-      window: [20, 50]
-    vema:
-      enabled: true
-      window: 30
-  
-  risk:
-    beta:
-      enabled: false            # not yet working
-      benchmark: 'SPY'  # S&P 500 as benchmark
-      window: 63
-    rolling_volatility:
-      enabled: true
       window: [21, 63]
-    sharpe_ratio:
-      enabled: true
-      window: [21, 63]
-      risk_free_rate: 0.01
-    max_drawdown:
-      enabled: true
-      window: 252
-  
-  performance:
-    rolling_cagr:
-      enabled: true
-      window: [63, 252]
-
-    hit_ratio:
-      enabled: true
-      window: 21
+ 

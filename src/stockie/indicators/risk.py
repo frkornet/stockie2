@@ -25,11 +25,12 @@ class RiskIndicators(BaseIndicators):
         full_benchmark = benchmark if isinstance(benchmark, pd.DataFrame) else benchmark.to_frame(name="close")
         full_benchmark.name = getattr(benchmark, "name", "benchmark")
 
-        benchmark_returns = self._normalize_series_input(
-            obj=full_benchmark, index=self.df.index, dailyize=False, label="benchmark"
-        ).pct_change()
+        benchmark_returns = self._compute_returns(
+            self._normalize_series_input(obj=full_benchmark, index=self.df.index, dailyize=False, label="benchmark"),
+            label="benchmark_ret"
+        )
 
-        asset_returns = self.df["close"].pct_change()
+        asset_returns = self._compute_returns(self.df["close"], label="asset_ret")
 
         # Align inputs
         aligned = pd.concat([asset_returns, benchmark_returns], axis=1)
@@ -75,14 +76,12 @@ class RiskIndicators(BaseIndicators):
         full_benchmark = benchmark if isinstance(benchmark, pd.DataFrame) else benchmark.to_frame(name="close")
         full_benchmark.name = getattr(benchmark, "name", "benchmark")
 
-        benchmark_returns = self._normalize_series_input(
-            obj=full_benchmark,
-            index=self.df.index,
-            dailyize=False,
-            label="benchmark"
-        ).pct_change()
+        benchmark_returns = self._compute_returns(
+            self._normalize_series_input(obj=full_benchmark, index=self.df.index, dailyize=False, label="benchmark"),
+            label="benchmark_ret"
+        )
 
-        asset_returns = self.df["close"].pct_change()
+        asset_returns = self._compute_returns(self.df["close"], label="asset_ret")
 
         # Align series
         assert isinstance(asset_returns, pd.Series) and isinstance(benchmark_returns, pd.Series), \
@@ -110,7 +109,7 @@ class RiskIndicators(BaseIndicators):
         NB: currently this only uses simple returns. Longer term we need to
         support log returns as well.
         """
-        returns = self.df["close"].pct_change()
+        returns = self._compute_returns(self.df["close"], label="volatility_ret")
         vol = returns.rolling(window=window).std() * (self.horizon_period ** 0.5)
         vol.name = self._build_indicator_name("rolling_volatility", window)
         return vol
@@ -123,7 +122,7 @@ class RiskIndicators(BaseIndicators):
         output is a subset of the input index. Only rows that are below the threshold
         will be returned  The first window-1 rows will be np.nan / None.
         """
-        returns = self.df["close"].pct_change()
+        returns = self._compute_returns(self.df["close"], label="dd_ret")
         downside = (returns[returns < threshold] - threshold) ** 2
         dd = (downside.rolling(window=window).mean() * self.horizon_period) ** 0.5 
         dd.name = self._build_indicator_name("downside_deviation", window)
@@ -141,7 +140,7 @@ class RiskIndicators(BaseIndicators):
         - window: Lookback window in trading days
         - risk_free_rate: scalar, Series, or DataFrame with 'close' column
         """
-        returns = self.df["close"].pct_change()
+        returns = self._compute_returns(self.df["close"], label="sharpe_ret")
         rf = self._normalize_series_input(
             obj=risk_free_rate, index=returns.index, dailyize=True, label="risk_free_rate"
         )
@@ -170,7 +169,7 @@ class RiskIndicators(BaseIndicators):
         However, doing so would increase the mean_excess and it is better to be conservative.
         This is also, how others are typically calculating the Sortino ratio.
         """
-        returns = self.df["close"].pct_change()
+        returns = self._compute_returns(self.df["close"], label="sortino_ret")
         target = self._normalize_series_input(
             obj=target_return, index=returns.index, dailyize=True, label="target_return"
         )
@@ -192,9 +191,9 @@ class RiskIndicators(BaseIndicators):
         return mdd
 
     def calmar(self, window: int = days_per_year) -> pd.Series:
-        """Calmar ratio = CAGR / |Max Drawdown| (approximate version using rolling returns)"""
+        """Calmar ratio = CAGR / |Max Drawdown| (log-aware version)"""
         prices = self.df["close"]
-        cagr = (prices / prices.shift(window)) ** (self.horizon_period / window) - 1
+        cagr = self._compute_cagr(prices, window, label="cagr")
         mdd = self.max_drawdown(window=window).abs()
         calmar = cagr / mdd.replace(0, np.nan)
         calmar.name = self._build_indicator_name("calmar", window)
