@@ -26,5 +26,5 @@ CREATE TABLE technical_indicators (
     date DATE,
     indicator TEXT,
     value DOUBLE PRECISION,
-    PRIMARY KEY (ticker, date, indicator)
+    PRIMARY KEY (ticker, indicator, date)
 );

@@ -7,3 +7,5 @@ __pycache__/
 *.sqlite3
 *.egg-info/
 *.vscode/
+*.prof
+*.csv

@@ -1,6 +1,7 @@
 from stockie.indicators import BaseIndicators
 from stockie.indicators import VolatilityIndicators
 import pandas as pd
+import numpy as np
 
 class TrendIndicators(BaseIndicators):
 
@@ -79,10 +80,10 @@ class TrendIndicators(BaseIndicators):
         plus_dm_smooth = plus_dm.rolling(window=window).sum()
         minus_dm_smooth = minus_dm.rolling(window=window).sum()
 
-        plus_di = 100 * (plus_dm_smooth / atr).replace([pd.NA, float("inf")], 0.0)
-        minus_di = 100 * (minus_dm_smooth / atr).replace([pd.NA, float("inf")], 0.0)
+        plus_di = 100 * (plus_dm_smooth / atr).replace([np.nan, float("inf")], 0.0)
+        minus_di = 100 * (minus_dm_smooth / atr).replace([np.nan, float("inf")], 0.0)
 
-        dx = 100 * ((plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, pd.NA))
+        dx = 100 * ((plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan))
         adx = dx.rolling(window=window).mean()
 
         prefix = self._build_indicator_name('adx', window) 

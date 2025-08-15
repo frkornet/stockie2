@@ -10,6 +10,8 @@ class Tickers:
         logger.info("Loading tickers...")
         logger.info(f"Selected ticker classes: {ticker_config=}")
 
+        self.benchmarks = ticker_config.get("benchmarks", [])
+
         self.nsye_tickers = self._get_nyse_tickers('N') if ticker_config['nyse'] else []
         self.nyse_american_tickers = self._get_nyse_tickers('A') if ticker_config['nyse_american'] else []
         self.nyse_arca_tickers = self._get_nyse_tickers('P') if ticker_config['nyse_arca'] else []
@@ -24,6 +26,7 @@ class Tickers:
         self.nasdaq100_tickers = self._get_nasdaq100_tickers() if ticker_config['nasdaq100'] else []
 
         self.all_tickers = sorted(set(
+            self.benchmarks +
             self.nsye_tickers +
             self.nyse_american_tickers +
             self.nyse_arca_tickers +

@@ -1,6 +1,13 @@
 start_date: 2000-01-01
 delta_threshold: 0.0001
 
+calculate_indicators: 
+  profile: false
+  calculate_processes: 1
+  cvs_directory: /mnt/e/indicators/
+  concatenate_dataframes: false
+  save_every_n_tickers: 1000
+
 log:
   dir: /home/frkornet/repos/stockie2/logs/
   filename: stock_price_ingestor.log
@@ -14,6 +21,7 @@ db:
   user: frkornet
 
 tickers:
+  benchmarks: ['SPY']
   nyse: true
   nyse_american: false
   nyse_arca: false
@@ -99,7 +107,7 @@ indicators:
     bollinger:
       enabled: true
       window: [21, 63]
-      std_dev: [2.0, 2.0]
+      num_std: [2.0, 2.0]
     tr:
       enabled: true
     max_tr:

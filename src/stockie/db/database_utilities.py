@@ -75,7 +75,7 @@ class DatabaseUtilities:
         Returns a DataFrame with date and close price for the given ticker.
         """
         query = """
-            SELECT date, close
+            SELECT date, close, low, high, volume
             FROM stock_prices
             WHERE ticker = %s
             ORDER BY date;
@@ -84,10 +84,11 @@ class DatabaseUtilities:
             cur.execute(query, (ticker,))
             rows = cur.fetchall()
 
+        columns = ["date", "close", "low", "high", "volume"]
         if not rows:
-            df = pd.DataFrame(columns=["date", "close"]).set_index("date")
+            df = pd.DataFrame(columns=columns).set_index("date")
         else:
-            df = pd.DataFrame(rows, columns=["date", "close"]).set_index("date")
+            df = pd.DataFrame(rows, columns=columns).set_index("date")
             df.index = pd.to_datetime(df.index)
         df.name = ticker
 
