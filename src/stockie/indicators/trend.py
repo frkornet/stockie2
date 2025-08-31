@@ -68,9 +68,9 @@ class TrendIndicators(BaseIndicators):
 
         # Calclulate +DM and -DM and make sure the first row is NaN
         plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0.0)
-        plus_dm.iloc[0]=pd.NA
+        plus_dm.iloc[0]=np.nan
         minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0.0)
-        minus_dm.iloc[0]=pd.NA
+        minus_dm.iloc[0]=np.nan
 
         # True Range via VolatilityIndicator
         tr = VolatilityIndicators(self.df).tr()

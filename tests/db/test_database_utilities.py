@@ -129,9 +129,9 @@ class TestDatabaseUtilities:
     def test_fetch_price_data_returns_frame(self, mock_conn):
         mock_cursor = MagicMock()
         mock_cursor.fetchall.return_value = [
-            ("2023-01-01", 150.0),
-            ("2023-01-02", 151.5),
-            ("2023-01-03", 149.7)
+            ("2023-01-01", 150.0, 145.0, 155.0, 1000000),
+            ("2023-01-02", 151.5, 146.0, 156.0, 1200000),
+            ("2023-01-03", 149.7, 144.5, 154.5, 1100000)
         ]
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
@@ -139,7 +139,7 @@ class TestDatabaseUtilities:
         df = db_util.fetch_price_data("AAPL")
 
         mock_cursor.execute.assert_called_once_with("""
-            SELECT date, close
+            SELECT date, close, low, high, volume
             FROM stock_prices
             WHERE ticker = %s
             ORDER BY date;
@@ -149,7 +149,7 @@ class TestDatabaseUtilities:
         expected_values = [150.0, 151.5, 149.7]
 
         assert isinstance(df, pd.DataFrame)
-        assert list(df.columns) == ["close"]
+        assert list(df.columns) == ['close', 'low', 'high', 'volume']
         assert df.index.equals(expected_index)
         assert df["close"].tolist() == expected_values
         assert df.name == "AAPL"
@@ -164,7 +164,7 @@ class TestDatabaseUtilities:
 
         assert isinstance(df, pd.DataFrame)
         assert df.empty
-        assert list(df.columns) == ["close"]
+        assert list(df.columns) == ['close', 'low', 'high', 'volume']
         assert df.index.name == "date"
 
 if __name__ == "__main__":

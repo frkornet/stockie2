@@ -42,6 +42,16 @@ class CalculateIndicators:
         
 
     def run(self, tickers: list[str], part: int =0) -> None:
+        """
+        Runs the indicator calculations for the provided tickers.
+        This method will fetch price data for each ticker, calculate indicators based on the configuration,
+        and save the results to a CSV file.
+        :param tickers: List of ticker symbols to calculate indicators for.
+        :param part: Part number for the CSV file, used for chunking large datasets.
+        :raises ValueError: If there are mismatched list lengths in the configuration for indicators.
+        :raises ModuleNotFoundError: If the indicator module cannot be found.
+        :raises AttributeError: If the indicator class or method cannot be found.
+        """
         benchmark_data = self._resolve_dependencies(self.indicator_config)
 
         self._remove_cvs_file(part)
@@ -202,18 +212,17 @@ def chunk_list(lst, n):
     k, m = divmod(len(lst), n)
     return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
 
-def worker(tickers_chunk, config):
+def worker(tickers_chunk, config, part):
     """Worker function to run indicator calculations on a chunk of tickers."""
     db_conn = psycopg2.connect(**config["db"])
     db_util = DatabaseUtilities(db_conn)
     runner = CalculateIndicators(db_util, config)
-    runner.run(tickers_chunk)
+    runner.run(tickers_chunk, part)
     db_conn.close()
 
-def load_indicators():
+def calculate_indicators():
     """
-    Main function to load indicators.
-    This function initializes the database utilities and starts the indicator calculation process.
+    Main function to calculate indicators and store the result in CSV files.
     """
     config = ConfigLoader().get()
     db_config = config["db"]
@@ -262,7 +271,7 @@ if __name__ == "__main__":
         profiler = cProfile.Profile()
         profiler.enable()
 
-    load_indicators()
+    calculate_indicators()
 
     if profile:
         profiler.disable()

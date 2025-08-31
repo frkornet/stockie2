@@ -3,10 +3,10 @@ delta_threshold: 0.0001
 
 calculate_indicators: 
   profile: false
-  calculate_processes: 1
+  calculate_processes: 4
   cvs_directory: /mnt/e/indicators/
   concatenate_dataframes: false
-  save_every_n_tickers: 1000
+  save_every_n_tickers: 100
 
 log:
   dir: /home/frkornet/repos/stockie2/logs/

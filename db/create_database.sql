@@ -23,8 +23,8 @@ CREATE TABLE IF NOT EXISTS stock_price_audit (
 
 CREATE TABLE technical_indicators (
     ticker TEXT,
-    date DATE,
     indicator TEXT,
+    date DATE,
     value DOUBLE PRECISION,
     PRIMARY KEY (ticker, indicator, date)
 );
