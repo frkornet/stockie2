@@ -1,20 +1,20 @@
 import yfinance as yf
+from yfinance.exceptions import YFInvalidPeriodError, YFTzMissingError
+
 import pandas as pd
 import psycopg2
-from psycopg2.extras import execute_values
 from datetime import datetime, timedelta, date
 
 from stockie.util import AuditWriter
 from stockie.db import DatabaseUtilities
-from stockie.log import CustomLogger
 
-logger = CustomLogger().get_logger()
+import logging
+logging.getLogger("yfinance").setLevel(logging.CRITICAL)
 
 class StockPriceIngestor:
-    def __init__(self, db_config, start_date, delta_threshold=1e-4, logger=logger):
+    def __init__(self, db_config, start_date, logger, delta_threshold=1e-4):
         self.conn = psycopg2.connect(**db_config)
-        self.cur = self.conn.cursor()
-        self.audit = AuditWriter(self.cur)
+        self.audit = AuditWriter(self.conn)
         self.logger = logger
 
         if start_date is None:
@@ -34,37 +34,7 @@ class StockPriceIngestor:
         required = ["stock_prices", "stock_price_audit"]
         if not db_util.table_exists(required):
             raise RuntimeError(f"Missing required tables: {', '.join(required)}")
-
-    def _fetch_db_prices(self, ticker, start_date):
-        self.cur.execute("""
-            SELECT date, open, high, low, close, adj_close, volume
-            FROM stock_prices
-            WHERE ticker = %s AND date >= %s
-        """, (ticker, start_date))
-        return pd.DataFrame(self.cur.fetchall(), columns=[
-            'Date', 'open_db', 'high_db', 'low_db',
-            'close_db', 'adj_close_db', 'volume_db'
-        ])
-
-    def _get_existing_dates(self, ticker):
-        self.cur.execute("SELECT date FROM stock_prices WHERE ticker = %s", (ticker,))
-        return {row[0] for row in self.cur.fetchall()}
-
-    def _delete_rows(self, ticker, dates):
-        self.cur.execute("""
-            DELETE FROM stock_prices
-            WHERE ticker = %s AND date = ANY(%s)
-        """, (ticker, list(dates)))
-        self.conn.commit()
-
-    def _insert_rows(self, records):
-        # adj_close is not in dataframe
-        execute_values(self.cur, """
-            INSERT INTO stock_prices (ticker, date, open, high, low, close, volume) 
-            VALUES %s
-            ON CONFLICT (ticker, date) DO NOTHING
-        """, records)
-        self.conn.commit()
+        self.db_util = db_util
 
     def _has_changes(self, df_new, df_db, compare_cols, ticker):
         if len(df_new) != len(df_db):
@@ -73,8 +43,8 @@ class StockPriceIngestor:
             self.logger.info(f"{ticker}: row count mismatch ({len(df_new)} vs {len(df_db)})")
             return True
 
-        logger.info(df_new.columns)
-        logger.info(df_db.columns)
+        self.logger.info(df_new.columns)
+        self.logger.info(df_db.columns)
         merged = pd.merge(df_new, df_db, on="Date", how="left")
         if len(merged) != len(df_new):
             reason = "date_join_mismatch"
@@ -104,11 +74,12 @@ class StockPriceIngestor:
         """Download stock data for a single ticker using yfinance."""
         today = datetime.today().date()
         df = yf.download(ticker, start=self.start_date, end=today + timedelta(days=1), auto_adjust=True, progress=False)
-        df.columns = df.columns.droplevel(1)
-        logger.info(f'{ticker=}: {df.columns=} {len(df)}')
         if df.empty:
             self.logger.info(f"{ticker}: no data.")
             return df
+        
+        df.columns = df.columns.droplevel(1)
+        self.logger.info(f'{ticker=}: {df.columns=} {len(df)}')
 
         df.reset_index(inplace=True)
         df['Date'] = df['Date'].dt.date
@@ -120,16 +91,16 @@ class StockPriceIngestor:
         today = datetime.today().date()
         today_row = df[df['Date'] == today]
         if not today_row.empty:
-            if today not in self._get_existing_dates(ticker):
-                self._insert_rows(today_row.values.tolist())
+            if today not in self.db_util.get_price_dates(ticker):
+                self.db_util.insert_price_data(today_row.values.tolist())
                 self.logger.info(f"{ticker}: inserted today's row.")
             else:
                 self.logger.info(f"{ticker}: today's data already present.")
                 if not db_df.empty:
                     today_db_row = db_df[db_df['Date'] == today]
                     if self._has_changes(today_row, today_db_row, ['Open', 'High', 'Low', 'Close', 'Volume'], ticker):
-                        self._delete_rows(ticker, [today])
-                        self._insert_rows(today_row.values.tolist())
+                        self.db_util.delete_price_by_dates(ticker, [today])
+                        self.db_util.insert_price_data(today_row.values.tolist())
                         self.logger.info(f"{ticker}: updated today's row.")
                     else:
                         self.logger.info(f"{ticker}: no changes to today's row.")
@@ -145,14 +116,14 @@ class StockPriceIngestor:
             return
 
         if db_df.empty:
-            self._insert_rows(hist_df.values.tolist())
+            self.db_util.insert_price_data(hist_df.values.tolist())
             self.logger.info(f"{ticker}: inserted historical rows (no prior data).")
             return
 
         db_df = db_df[db_df['Date'] < today]
         if self._has_changes(hist_df, db_df, ['Open', 'High', 'Low', 'Close', 'Volume'], ticker):
-            self._delete_rows(ticker, hist_df['Date'].tolist())
-            self._insert_rows(hist_df[['Ticker', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume']].values.tolist())
+            self.db_util.delete_price_by_dates(ticker, hist_df['Date'].tolist())
+            self.db_util.insert_price_data(hist_df[['Ticker', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume']].values.tolist())
             self.logger.info(f"{ticker}: reconciled {len(hist_df)} historical rows.")
         else:
             self.logger.info(f"{ticker}: no historical differences.")
@@ -172,15 +143,15 @@ class StockPriceIngestor:
                     self.logger.info(f"{ticker}: no data.")
                     continue
 
-                db_df = self._fetch_db_prices(ticker, self.start_date)
+                db_df = self.db_util.fetch_price_after_start_date(ticker, self.start_date)
                 self._process_today_price(df, db_df, ticker)
                 self._process_historical_prices(df, db_df, ticker)
 
+            except YFInvalidPeriodError as e:
+                self.logger.warning(f"{ticker}: invalid period - {e} -> ignored")
+            except YFTzMissingError as e:
+                self.logger.warning(f"{ticker}: delisted - {e} -> ignored")
             except Exception as e:
                 self.logger.exception(f"{ticker}: ingestion failed - {e}")
 
         self.logger.info("Stock price download completed.")
-
-    def close(self):
-        self.cur.close()
-        self.conn.close()

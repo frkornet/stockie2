@@ -1,33 +1,50 @@
 start_date: 2000-01-01
 delta_threshold: 0.0001
 
+load_stock_prices:
+  log_filename: /mnt/log/stockie/dev/load_stock_prices.log
+  log_level: INFO
+  console: false
+
 calculate_indicators: 
   profile: false
   calculate_processes: 4
-  cvs_directory: /mnt/e/indicators/
+  cvs_directory: /mnt/staging/stockie/dev/indicators/
   concatenate_dataframes: false
   save_every_n_tickers: 100
+  log_filename: /mnt/log/stockie/dev/calculate_indicators.log
+  log_level: INFO
+  console: false
 
-log:
-  dir: /home/frkornet/repos/stockie2/logs/
-  filename: stock_price_ingestor.log
-  level: INFO
+load_indicators:
+  load_processes: 4
+  cvs_directory: /mnt/staging/stockie/dev/indicators
+  log_filename: /mnt/log/stockie/dev/load_indicators.log
+  log_level: INFO
+  console: false
+
+daily_job:
+  load_stock_prices: true
+  calculate_indicators: true
+  load_indicators: true
+  log_filename: /mnt/log/stockie/dev/daily_job.log
+  log_level: INFO
   console: true
 
 db:
   host: localhost
   port: 5432
-  dbname: trading_db
-  user: frkornet
+  dbname: stockie_dev_db
+  user: stockie_dev
 
 tickers:
   benchmarks: ['SPY']
-  nyse: true
+  nyse: false
   nyse_american: false
   nyse_arca: false
   sp500: true
-  nasdaq: true
-  nasdaq100: true
+  nasdaq: false
+  nasdaq100: false
   dow30: true
   russell2000: false
 

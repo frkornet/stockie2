@@ -2,10 +2,8 @@ import yaml
 import os
 from dotenv import load_dotenv
 
-CONFIG_DIR='/home/frkornet/repos/stockie2/config/'
-
 class ConfigLoader:
-    def __init__(self, config_path=CONFIG_DIR+"settings.yaml", dotenv_path=CONFIG_DIR+".env"):
+    def __init__(self, config_path, dotenv_path):
         # Load .env file (for DB_PASSWORD and other secure values)
         load_dotenv(dotenv_path)
 

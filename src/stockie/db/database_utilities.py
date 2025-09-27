@@ -2,11 +2,17 @@ from psycopg2 import sql
 from psycopg2.extras import execute_values
 from collections.abc import Iterable
 import pandas as pd
+from datetime import date
+from typing import List
 
 class DatabaseUtilities:
     def __init__(self, conn):
         self.conn = conn
         self.cur = conn.cursor()
+
+    #############################################################
+    ###                Common database methods                ###
+    #############################################################
 
     def table_exists(self, table_names):
         if isinstance(table_names, str):
@@ -26,8 +32,34 @@ class DatabaseUtilities:
 
         existing = {row[0] for row in self.cur.fetchall()}
         return all(name in existing for name in table_names)
-    
-    from typing import List
+
+    def truncate_table(self, table_name: str):
+        """
+        Truncates the specified table.
+        """
+        if not isinstance(table_name, str):
+            raise TypeError("Table name must be a string.")
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(sql.SQL("TRUNCATE TABLE {}").format(sql.Identifier(table_name)))
+            self.conn.commit()
+        except Exception as e:
+            self.conn.rollback()
+            raise RuntimeError(f"Failed to truncate table '{table_name}': {e}")
+
+    #############################################################
+    ### Methods for interacting with stock_price_audit table  ###
+    #############################################################
+
+    def write_audit_message(self, ticker: str, message: str) -> None:
+                self.cur.execute("""
+            INSERT INTO stock_price_audit (ticker, date, message)
+            VALUES (%s, CURRENT_DATE, %s)
+        """, (ticker, message))
+
+    #############################################################
+    ###    Methods for interacting with stock_prices table    ###
+    #############################################################
 
     def get_unique_tickers(self) -> List[str]:
         """
@@ -38,6 +70,63 @@ class DatabaseUtilities:
             results = cur.fetchall()
             return [row[0] for row in results]
 
+    def fetch_price_data(self, ticker: str) -> pd.DataFrame:
+        """
+        Returns a DataFrame with date and close price for the given ticker.
+        """
+        query = """
+            SELECT date, close, low, high, volume
+            FROM stock_prices
+            WHERE ticker = %s
+            ORDER BY date;
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(query, (ticker,))
+            rows = cur.fetchall()
+
+        columns = ["date", "close", "low", "high", "volume"]
+        if not rows:
+            df = pd.DataFrame(columns=columns).set_index("date")
+        else:
+            df = pd.DataFrame(rows, columns=columns).set_index("date")
+            df.index = pd.to_datetime(df.index)
+        df.name = ticker
+
+        return df
+
+    def fetch_price_after_start_date(self, ticker: str, start_date: date) -> pd.DataFrame:
+        self.cur.execute("""
+            SELECT date, open, high, low, close, adj_close, volume
+            FROM stock_prices
+            WHERE ticker = %s AND date >= %s
+        """, (ticker, start_date))
+        return pd.DataFrame(self.cur.fetchall(), columns=[
+            'Date', 'open_db', 'high_db', 'low_db',
+            'close_db', 'adj_close_db', 'volume_db'
+        ])
+
+    def get_price_dates(self, ticker: str) -> set:
+        self.cur.execute("SELECT date FROM stock_prices WHERE ticker = %s", (ticker,))
+        return {row[0] for row in self.cur.fetchall()}
+
+    def delete_price_by_dates(self, ticker: str, dates: List[date]) -> None:
+        self.cur.execute("""
+            DELETE FROM stock_prices
+            WHERE ticker = %s AND date = ANY(%s)
+        """, (ticker, list(dates)))
+        self.conn.commit()
+
+    def insert_price_data(self, data):
+        execute_values(self.cur, """
+            INSERT INTO stock_prices (ticker, date, open, high, low, close, volume) 
+            VALUES %s
+            ON CONFLICT (ticker, date) DO NOTHING
+        """, data)
+        self.conn.commit()
+
+    ###############################################################
+    ### Methods for interacting with technical_indicators table ###
+    ###############################################################
 
     def insert_indicator_series(self, series: pd.Series, ticker: str, indicator: str):
         """
@@ -69,27 +158,18 @@ class DatabaseUtilities:
         with self.conn.cursor() as cur:
             execute_values(cur, query, data)
             self.conn.commit()
-
-    def fetch_price_data(self, ticker: str) -> pd.DataFrame:
+    
+    def copy_from_file(self, file_path: str):
         """
-        Returns a DataFrame with date and close price for the given ticker.
+        Loads a CSV file into the technical_indicators table using PostgreSQL COPY.
         """
-        query = """
-            SELECT date, close, low, high, volume
-            FROM stock_prices
-            WHERE ticker = %s
-            ORDER BY date;
-        """
-        with self.conn.cursor() as cur:
-            cur.execute(query, (ticker,))
-            rows = cur.fetchall()
-
-        columns = ["date", "close", "low", "high", "volume"]
-        if not rows:
-            df = pd.DataFrame(columns=columns).set_index("date")
-        else:
-            df = pd.DataFrame(rows, columns=columns).set_index("date")
-            df.index = pd.to_datetime(df.index)
-        df.name = ticker
-
-        return df
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(f"""
+                    COPY technical_indicators(ticker, indicator, date, value)
+                    FROM '{file_path}' WITH (FORMAT csv, HEADER true);
+                """)
+            self.conn.commit()
+        except Exception as e:
+            self.conn.rollback()
+            raise RuntimeError(f"Failed to load {file_path}: {e}")

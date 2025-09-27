@@ -1,31 +1,71 @@
+# src/stockie/util/tickers.py
+
 import pandas as pd
-import datetime as dt
 import requests
 from stockie.loaders import ConfigLoader
+from io import StringIO
 
 class Tickers:
     def __init__(self, logger):
+        self.logger = logger
         self.config = ConfigLoader().get()
-        ticker_config = self.config["tickers"]
-        logger.info("Loading tickers...")
-        logger.info(f"Selected ticker classes: {ticker_config=}")
+        self.ticker_config = self.config["tickers"]
+        self.logger.info("Initialized Tickers with config:")
+        self.logger.info(f"{self.ticker_config=}")
 
-        self.benchmarks = ticker_config.get("benchmarks", [])
+    @property
+    def benchmarks(self):
+        return self.ticker_config.get("benchmarks", [])
 
-        self.nsye_tickers = self._get_nyse_tickers('N') if ticker_config['nyse'] else []
-        self.nyse_american_tickers = self._get_nyse_tickers('A') if ticker_config['nyse_american'] else []
-        self.nyse_arca_tickers = self._get_nyse_tickers('P') if ticker_config['nyse_arca'] else []
-        
-        self.sp500_tickers = self._get_sp500_tickers() if ticker_config['sp500'] else []
-        self.dow30_tickers = self._get_dow30_tickers() if ticker_config['dow30'] else []
-        
-        # TODO: Implement method to fetch Russell 2000
-        self.russell2000_tickers = []
+    @property
+    def nsye_tickers(self):
+        if not self.ticker_config.get("nyse"):
+            return []
+        return self._get_nyse_tickers('N')
 
-        self.nasdaq_tickers = self._get_nasdaq_tickers() if ticker_config['nasdaq'] else []
-        self.nasdaq100_tickers = self._get_nasdaq100_tickers() if ticker_config['nasdaq100'] else []
+    @property
+    def nyse_american_tickers(self):
+        if not self.ticker_config.get("nyse_american"):
+            return []
+        return self._get_nyse_tickers('A')
 
-        self.all_tickers = sorted(set(
+    @property
+    def nyse_arca_tickers(self):
+        if not self.ticker_config.get("nyse_arca"):
+            return []
+        return self._get_nyse_tickers('P')
+
+    @property
+    def sp500_tickers(self):
+        if not self.ticker_config.get("sp500"):
+            return []
+        return self._get_sp500_tickers()
+
+    @property
+    def dow30_tickers(self):
+        if not self.ticker_config.get("dow30"):
+            return []
+        return self._get_dow30_tickers()
+
+    @property
+    def russell2000_tickers(self):
+        return []  # TODO
+
+    @property
+    def nasdaq_tickers(self):
+        if not self.ticker_config.get("nasdaq"):
+            return []
+        return self._get_nasdaq_tickers()
+
+    @property
+    def nasdaq100_tickers(self):
+        if not self.ticker_config.get("nasdaq100"):
+            return []
+        return self._get_nasdaq100_tickers()
+
+    @property
+    def all_tickers(self):
+        return sorted(set(
             self.benchmarks +
             self.nsye_tickers +
             self.nyse_american_tickers +
@@ -40,61 +80,33 @@ class Tickers:
     def _get_nyse_tickers(self, exchange='N'):
         url = "ftp://ftp.nasdaqtrader.com/SymbolDirectory/otherlisted.txt"
         df = pd.read_csv(url, sep="|")
-        nyse_df = df[df["Exchange"] == exchange]
-        return sorted(nyse_df["ACT Symbol"].dropna().unique())
+        return sorted(df[df["Exchange"] == exchange]["ACT Symbol"].dropna().unique())
 
     def _get_dow30_tickers(self):
         return [
-            "AAPL",  # Apple
-            "AMGN",  # Amgen
-            "AXP",   # American Express
-            "BA",    # Boeing
-            "CAT",   # Caterpillar
-            "CRM",   # Salesforce
-            "CSCO",  # Cisco Systems
-            "CVX",   # Chevron
-            "DIS",   # Walt Disney
-            "DOW",   # Dow Inc.
-            "GS",    # Goldman Sachs
-            "HD",    # Home Depot
-            "HON",   # Honeywell
-            "IBM",   # IBM
-            "INTC",  # Intel
-            "JNJ",   # Johnson & Johnson
-            "JPM",   # JPMorgan Chase
-            "KO",    # Coca-Cola
-            "MCD",   # McDonald's
-            "MMM",   # 3M
-            "MRK",   # Merck
-            "MSFT",  # Microsoft
-            "NKE",   # Nike
-            "PG",    # Procter & Gamble
-            "TRV",   # Travelers
-            "UNH",   # UnitedHealth
-            "V",     # Visa
-            "VZ",    # Verizon
-            "WBA",   # Walgreens Boots Alliance
-            "WMT",   # Walmart
+            "AAPL", "AMGN", "AXP", "BA", "CAT", "CRM", "CSCO", "CVX", "DIS", "DOW", "GS", "HD",
+            "HON", "IBM", "INTC", "JNJ", "JPM", "KO", "MCD", "MMM", "MRK", "MSFT", "NKE", "PG",
+            "TRV", "UNH", "V", "VZ", "WBA", "WMT"
         ]
 
     def _get_sp500_tickers(self):
         url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-        tables = pd.read_html(url)
-        df = tables[0]
-        return df["Symbol"].tolist()
-
-    # TODO: implement this method to fetch Russell 2000 tickers
-    def _get_russell2000_tickers(self):
-        return []
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/115.0.0.0 Safari/537.36"
+            )
+        }
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        tables = pd.read_html(StringIO(response.text))
+        return tables[0]["Symbol"].tolist()
 
     def _get_nasdaq_tickers(self):
         url = "ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqlisted.txt"
-        df = pd.read_csv(url, sep="|")
-        
-        # last element is something like 'FILE CREATION TIME: 0623202518:01' and needs to be skipped
-        df = df.iloc[:-1]
-        df = df[df["Symbol"].notna()]
-        return df["Symbol"].tolist()
+        df = pd.read_csv(url, sep="|").iloc[:-1]
+        return df[df["Symbol"].notna()]["Symbol"].tolist()
 
     def _get_nasdaq100_tickers(self):
         url = "https://api.nasdaq.com/api/quote/list-type/nasdaq100"
@@ -103,14 +115,7 @@ class Tickers:
             "Accept": "application/json",
             "Accept-Language": "en-US,en;q=0.9"
         }
-
         response = requests.get(url, headers=headers)
         response.raise_for_status()
-
-        data = response.json()
-        rows = data["data"]["data"]["rows"]
-        tickers = [row["symbol"] for row in rows]
-        return tickers
-    
-    def get_all_tickers(self):
-        return self.all_tickers
+        rows = response.json()["data"]["data"]["rows"]
+        return [row["symbol"] for row in rows]
