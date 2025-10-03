@@ -3,7 +3,7 @@ from stockie.indicators import BaseIndicators
 
 class VolatilityIndicators(BaseIndicators):
 
-    def __init__(self, df: pd.DataFrame):
+    def __init__(self, df: pd.DataFrame) -> None:
         super().__init__(df)
 
     def bollinger(self, window: int = 20, num_std: float = 2.0) -> pd.DataFrame:

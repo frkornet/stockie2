@@ -5,7 +5,7 @@ from stockie.indicators import BaseIndicators
 class RiskIndicators(BaseIndicators):
     days_per_year = 252
 
-    def __init__(self, df: pd.DataFrame, horizon_period: int = days_per_year):
+    def __init__(self, df: pd.DataFrame, horizon_period: int = days_per_year) -> None:
         super().__init__(df, horizon_period=horizon_period)
         
     def alpha(

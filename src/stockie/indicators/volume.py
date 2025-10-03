@@ -4,7 +4,7 @@ import numpy as np
 
 class VolumeIndicators(BaseIndicators):
 
-    def __init__(self, df: pd.DataFrame):
+    def __init__(self, df: pd.DataFrame) -> None:
         super().__init__(df)
 
     def vsma(self, window: int = 21) -> pd.Series:

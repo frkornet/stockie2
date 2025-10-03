@@ -9,8 +9,9 @@ from multiprocessing import Process
 from stockie.log.custom_logger import CustomLogger
 from stockie.db.database_facade import DatabaseFacade
 from stockie.loaders.config_loader import ConfigLoader
+from typing import List, Dict, Any
 
-def load_file_batch(file_list, log_path, db_config):
+def load_file_batch(file_list: List[str], log_path: str, db_config: Dict[str, Any]) -> None:
     start_batch = time.time()
 
     logger = CustomLogger(

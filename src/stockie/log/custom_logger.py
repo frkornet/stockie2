@@ -1,15 +1,16 @@
 import logging
 import os
+from typing import Union
 
 class CustomLogger:
     def __init__(
         self,
-        name=__name__,
-        log_to_console=True,
-        log_level=logging.INFO,
-        log_dir='',
-        log_filename="stock_price_ingestor.log"
-    ):
+        name: str = __name__,
+        log_to_console: bool = True,
+        log_level: Union[int, str] = logging.INFO,
+        log_dir: str = '',
+        log_filename: str = "stock_price_ingestor.log"
+    ) -> None:
         if log_dir:
             os.makedirs(log_dir, exist_ok=True)
 
@@ -32,5 +33,5 @@ class CustomLogger:
                 ))
                 self.logger.addHandler(console_handler)
 
-    def get_logger(self):
+    def get_logger(self) -> logging.Logger:
         return self.logger

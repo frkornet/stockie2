@@ -9,3 +9,5 @@ __pycache__/
 *.vscode/
 *.prof
 *.csv
+.python-version
+.DS_Store

@@ -5,7 +5,7 @@ import numpy as np
 
 class TrendIndicators(BaseIndicators):
 
-    def __init__(self, df: pd.DataFrame):
+    def __init__(self, df: pd.DataFrame) -> None:
         super().__init__(df)
 
     def sma(self, window: int) -> pd.Series:

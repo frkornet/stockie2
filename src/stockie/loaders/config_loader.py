@@ -13,7 +13,7 @@ class ConfigLoader:
     - settings-prod.yaml
     """
     
-    def __init__(self, config_dir: str):
+    def __init__(self, config_dir: str) -> None:
         """
         Initialize ConfigLoader with config directory path
         
@@ -37,7 +37,7 @@ class ConfigLoader:
         if not os.path.exists(self.config_path):
             raise FileNotFoundError(f"Configuration file not found: {self.config_path}")
 
-    def get(self):
+    def get(self) -> dict:
         """
         Load and return configuration from the selected settings file
         
@@ -64,10 +64,10 @@ class ConfigLoader:
         except Exception as e:
             raise RuntimeError(f"Unexpected error loading configuration from {self.config_path}: {e}")
 
-    def get_environment(self):
+    def get_environment(self) -> str:
         """Get the current environment"""
         return self.environment
 
-    def get_config_path(self):
+    def get_config_path(self) -> str:
         """Get the path to the configuration file being used"""
         return self.config_path

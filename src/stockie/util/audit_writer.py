@@ -1,14 +1,16 @@
 from stockie.db.database_facade import DatabaseFacade
+from typing import List, Optional
+import psycopg2
 
 class AuditWriter:
     """
     Utility to write structured audit summaries to the stock_price_audit table.
     """
 
-    def __init__(self, conn):
+    def __init__(self, conn: psycopg2.extensions.connection) -> None:
         self.db_util = DatabaseFacade(conn)
 
-    def log_change_summary(self, ticker, reason, columns_changed):
+    def log_change_summary(self, ticker: str, reason: str, columns_changed: Optional[List[str]]) -> None:
         """
         Inserts a summary audit entry indicating a reconciliation cause.
 

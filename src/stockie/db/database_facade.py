@@ -3,10 +3,11 @@ from psycopg2.extras import execute_values
 from collections.abc import Iterable
 import pandas as pd
 from datetime import date
-from typing import List, Callable, Any
+from typing import List, Callable, Any, Union
+import psycopg2
 
 class DatabaseFacade:
-    def __init__(self, conn):
+    def __init__(self, conn: psycopg2.extensions.connection) -> None:
         self.conn = conn
         self.cur = conn.cursor()
         self.conn.autocommit = True
@@ -15,7 +16,7 @@ class DatabaseFacade:
     ###                Common database methods                ###
     #############################################################
 
-    def table_exists(self, table_names):
+    def table_exists(self, table_names: Union[str, List[str]]) -> bool:
         if isinstance(table_names, str):
             table_names = [table_names]
         elif not isinstance(table_names, Iterable):
@@ -34,7 +35,7 @@ class DatabaseFacade:
         existing = {row[0] for row in self.cur.fetchall()}
         return all(name in existing for name in table_names)
 
-    def truncate_table(self, table_name: str):
+    def truncate_table(self, table_name: str) -> None:
         """
         Truncates the specified table.
         """
@@ -156,7 +157,7 @@ class DatabaseFacade:
         """, (ticker, list(dates)))
         self.conn.commit()
 
-    def insert_price_data(self, data):
+    def insert_price_data(self, data: List[tuple]) -> None:
         execute_values(self.cur, """
             INSERT INTO stock_prices (ticker, date, open, high, low, close, volume) 
             VALUES %s
@@ -168,7 +169,7 @@ class DatabaseFacade:
     ### Methods for interacting with technical_indicators table ###
     ###############################################################
 
-    def insert_indicator_series(self, series: pd.Series, ticker: str, indicator: str):
+    def insert_indicator_series(self, series: pd.Series, ticker: str, indicator: str) -> None:
         """
         Inserts a time series into the technical_indicators table.
 
@@ -199,7 +200,7 @@ class DatabaseFacade:
             execute_values(cur, query, data)
             self.conn.commit()
     
-    def copy_from_file(self, file_path: str):
+    def copy_from_file(self, file_path: str) -> None:
         """
         Loads a CSV file into the technical_indicators table using PostgreSQL COPY.
         """

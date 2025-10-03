@@ -3,66 +3,68 @@
 import pandas as pd
 import requests
 from io import StringIO
+from typing import List
+import logging
 
 class Tickers:
-    def __init__(self, logger, full_config: dict):
+    def __init__(self, logger: logging.Logger, full_config: dict) -> None:
         self.logger = logger
         self.ticker_config = full_config["tickers"]
         self.logger.info("Initialized Tickers with config:")
         self.logger.info(f"{self.ticker_config=}")
 
     @property
-    def benchmarks(self):
+    def benchmarks(self) -> List[str]:
         return self.ticker_config.get("benchmarks", [])
 
     @property
-    def nsye_tickers(self):
+    def nsye_tickers(self) -> List[str]:
         if not self.ticker_config.get("nyse"):
             return []
         return self._get_nyse_tickers('N')
 
     @property
-    def nyse_american_tickers(self):
+    def nyse_american_tickers(self) -> List[str]:
         if not self.ticker_config.get("nyse_american"):
             return []
         return self._get_nyse_tickers('A')
 
     @property
-    def nyse_arca_tickers(self):
+    def nyse_arca_tickers(self) -> List[str]:
         if not self.ticker_config.get("nyse_arca"):
             return []
         return self._get_nyse_tickers('P')
 
     @property
-    def sp500_tickers(self):
+    def sp500_tickers(self) -> List[str]:
         if not self.ticker_config.get("sp500"):
             return []
         return self._get_sp500_tickers()
 
     @property
-    def dow30_tickers(self):
+    def dow30_tickers(self) -> List[str]:
         if not self.ticker_config.get("dow30"):
             return []
         return self._get_dow30_tickers()
 
     @property
-    def russell2000_tickers(self):
+    def russell2000_tickers(self) -> List[str]:
         return []  # TODO
 
     @property
-    def nasdaq_tickers(self):
+    def nasdaq_tickers(self) -> List[str]:
         if not self.ticker_config.get("nasdaq"):
             return []
         return self._get_nasdaq_tickers()
 
     @property
-    def nasdaq100_tickers(self):
+    def nasdaq100_tickers(self) -> List[str]:
         if not self.ticker_config.get("nasdaq100"):
             return []
         return self._get_nasdaq100_tickers()
 
     @property
-    def all_tickers(self):
+    def all_tickers(self) -> List[str]:
         return sorted(set(
             self.benchmarks +
             self.nsye_tickers +
@@ -75,19 +77,19 @@ class Tickers:
             self.nasdaq100_tickers
         ))
 
-    def _get_nyse_tickers(self, exchange='N'):
+    def _get_nyse_tickers(self, exchange: str = 'N') -> List[str]:
         url = "ftp://ftp.nasdaqtrader.com/SymbolDirectory/otherlisted.txt"
         df = pd.read_csv(url, sep="|")
         return sorted(df[df["Exchange"] == exchange]["ACT Symbol"].dropna().unique())
 
-    def _get_dow30_tickers(self):
+    def _get_dow30_tickers(self) -> List[str]:
         return [
             "AAPL", "AMGN", "AXP", "BA", "CAT", "CRM", "CSCO", "CVX", "DIS", "DOW", "GS", "HD",
             "HON", "IBM", "INTC", "JNJ", "JPM", "KO", "MCD", "MMM", "MRK", "MSFT", "NKE", "PG",
             "TRV", "UNH", "V", "VZ", "WBA", "WMT"
         ]
 
-    def _get_sp500_tickers(self):
+    def _get_sp500_tickers(self) -> List[str]:
         url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
         headers = {
             "User-Agent": (
@@ -101,12 +103,12 @@ class Tickers:
         tables = pd.read_html(StringIO(response.text))
         return tables[0]["Symbol"].tolist()
 
-    def _get_nasdaq_tickers(self):
+    def _get_nasdaq_tickers(self) -> List[str]:
         url = "ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqlisted.txt"
         df = pd.read_csv(url, sep="|").iloc[:-1]
         return df[df["Symbol"].notna()]["Symbol"].tolist()
 
-    def _get_nasdaq100_tickers(self):
+    def _get_nasdaq100_tickers(self) -> List[str]:
         url = "https://api.nasdaq.com/api/quote/list-type/nasdaq100"
         headers = {
             "User-Agent": "Mozilla/5.0",

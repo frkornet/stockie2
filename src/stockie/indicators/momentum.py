@@ -2,7 +2,7 @@ import pandas as pd
 from stockie.indicators import BaseIndicators
 
 class MomentumIndicators(BaseIndicators):
-    def __init__(self, df: pd.DataFrame):
+    def __init__(self, df: pd.DataFrame) -> None:
         super().__init__(df)
 
     def rsi(self, window: int = 14) -> pd.Series:

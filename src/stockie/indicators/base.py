@@ -2,14 +2,14 @@ import pandas as pd
 import numpy as np
 
 class BaseIndicators:
-    def __init__(self, df: pd.DataFrame, horizon_period: int = 252, use_log_returns: bool = False):
+    def __init__(self, df: pd.DataFrame, horizon_period: int = 252, use_log_returns: bool = False) -> None:
         self.set_data(df)
         if not isinstance(horizon_period, int) or horizon_period <= 0:
             raise ValueError("Horizon period must be a positive integer.")
         self.horizon_period = horizon_period
         self.use_log_returns = use_log_returns
 
-    def set_data(self, df: pd.DataFrame):
+    def set_data(self, df: pd.DataFrame) -> None:
         if not isinstance(df, pd.DataFrame):
             raise TypeError("Expected a pandas DataFrame")
 

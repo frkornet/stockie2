@@ -11,7 +11,7 @@ from stockie.loaders.config_loader import ConfigLoader
 from stockie.log.custom_logger import CustomLogger
 from stockie.db import DatabaseFacade
 
-def run_daily_job(config_dir):
+def run_daily_job(config_dir: str) -> None:
     start_job = time.time()
     logger = None
     conn = None
@@ -89,7 +89,7 @@ def run_daily_job(config_dir):
             except Exception as e:
                 logger.error(f"Error closing database connection: {e}")
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Run the daily Stockie job.")
     parser.add_argument("--config-dir", required=True, help="Directory containing settings.yaml and .env")
     args = parser.parse_args()

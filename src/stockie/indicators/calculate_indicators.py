@@ -5,17 +5,16 @@ import psycopg2
 import os
 import csv
 import multiprocessing
-import cProfile
-import pstats
 
 from importlib import import_module
 from pathlib import Path
 from stockie.db import DatabaseFacade
 from stockie.loaders.config_loader import ConfigLoader
 from stockie.log.custom_logger import CustomLogger
+from typing import List, Dict, Any
 
 class CalculateIndicators:
-    def __init__(self, db_util: DatabaseFacade, config: dict):
+    def __init__(self, db_util: DatabaseFacade, config: dict) -> None:
         """
         Initializes the indicator runner with database access and config.
 
@@ -224,12 +223,12 @@ class CalculateIndicators:
                     out[key] = benchmark_data[val]
         return out
 
-def chunk_list(lst, n):
+def chunk_list(lst: List[Any], n: int) -> List[List[Any]]:
     """Splits list `lst` into `n` roughly equal chunks."""
     k, m = divmod(len(lst), n)
     return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
 
-def worker(tickers_chunk, config, part):
+def worker(tickers_chunk: List[str], config: Dict[str, Any], part: int) -> None:
     """Worker function to run indicator calculations on a chunk of tickers."""
     db_conn = psycopg2.connect(**config["db"])
     db_util = DatabaseFacade(db_conn)
@@ -237,7 +236,7 @@ def worker(tickers_chunk, config, part):
     runner.run(tickers_chunk, part)
     db_conn.close()
 
-def calculate_indicators(db_facade, full_config: dict):
+def calculate_indicators(db_facade: DatabaseFacade, full_config: Dict[str, Any]) -> None:
     """
     Calculate technical indicators using the provided database facade and configuration.
     
@@ -268,11 +267,3 @@ def calculate_indicators(db_facade, full_config: dict):
         indicator_runner = CalculateIndicators(db_facade, full_config)
         indicator_runner.run(tickers)
 
-def export_profile_to_csv(stats, filename="profile.csv"):
-    with open(filename, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["Function", "Calls", "Total Time", "Cumulative Time"])
-        for func, stat in stats.stats.items():
-            func_name = f"{func[0]}:{func[1]}({func[2]})"
-            cc, nc, tt, ct, callers = stat
-            writer.writerow([func_name, nc, tt, ct])

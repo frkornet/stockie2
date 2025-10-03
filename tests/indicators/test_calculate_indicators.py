@@ -280,30 +280,6 @@ class TestCalculateIndicators:
             calculate_indicators(mock_db_facade, config)
             mock_runner.run.assert_called_once_with([])
 
-    def test_export_profile_to_csv(self, tmp_path):
-        # Create a mock stats object with .stats attribute
-        class MockStats:
-            def __init__(self):
-                # keys are tuples: (filename, line_no, func_name)
-                # values are tuples: (cc, nc, tt, ct, callers)
-                self.stats = {
-                    ("file1.py", 10, "funcA"): (1, 2, 0.1, 0.2, {}),
-                    ("file2.py", 20, "funcB"): (3, 4, 0.3, 0.4, {}),
-                }
-
-        filename = tmp_path / "profile.csv"
-        from stockie.indicators.calculate_indicators import export_profile_to_csv
-
-        stats = MockStats()
-        export_profile_to_csv(stats, filename=str(filename))
-
-        # Check file contents
-        with open(filename, newline="") as f:
-            reader = list(csv.reader(f))
-        assert reader[0] == ["Function", "Calls", "Total Time", "Cumulative Time"]
-        assert reader[1] == ["file1.py:10(funcA)", "2", "0.1", "0.2"]
-        assert reader[2] == ["file2.py:20(funcB)", "4", "0.3", "0.4"]
-
     def test_worker_function(self, mock_config):
         mock_conn = MagicMock()
         mock_db_util = MagicMock()
