@@ -1,0 +1,157 @@
+start_date: 2000-01-01
+delta_threshold: 0.0001
+
+load_stock_prices:
+  log_filename: /mnt/log/stockie/prod/load_stock_prices.log
+  log_level: INFO
+  console: false
+  batch_size: 500
+  processes: 1
+  max_consecutive_batch_failures: 10
+  
+calculate_indicators: 
+  profile: false
+  calculate_processes: 4
+  csv_directory: /mnt/staging/stockie/prod/indicators/
+  concatenate_dataframes: false
+  save_every_n_tickers: 100
+  log_filename: /mnt/log/stockie/prod/calculate_indicators.log
+  log_level: INFO
+  console: false
+
+load_indicators:
+  load_processes: 4
+  csv_directory: /mnt/staging/stockie/prod/indicators
+  log_filename: /mnt/log/stockie/prod/load_indicators.log
+  log_level: INFO
+  console: false
+
+daily_job:
+  load_stock_prices: true
+  calculate_indicators: true
+  load_indicators: true
+  log_filename: /mnt/log/stockie/prod/daily_job.log
+  log_level: INFO
+  console: true
+
+db:
+  host: localhost
+  port: 5432
+  dbname: stockie_db
+  user: stockie
+
+tickers:
+  benchmarks: ['SPY']
+  nyse: true
+  nyse_american: false
+  nyse_arca: false
+  sp500: true
+  nasdaq: true
+  nasdaq100: true
+  dow30: true
+  russell2000: false
+
+indicators:
+  momentum:
+    rsi:
+      enabled: true
+      window: 14
+    stoch:
+      enabled: true
+      k_window: 14
+      d_window: 3
+    cci:
+      enabled: true
+      window: 20
+    momentum:
+      enabled: true
+      window: 10
+
+  performance:
+    daily_returns:
+      enabled: true
+    cumulative_returns:
+      enabled: true
+    drawdown_duration:
+      enabled: true
+
+  risk:
+    alpha:
+      enabled: true
+      benchmark: 'SPY'
+      window: [63, 252]
+      risk_free_benchmark: 0.04
+    beta:
+      enabled: true
+      benchmark: 'SPY'
+      window: [63, 252]
+    rolling_volatility:
+      enabled: true
+      window: [21, 63]
+    downside_deviation:
+      enabled: true
+      window: [21, 63]
+      threshold: 0.0
+    sharpe:
+      enabled: true
+      window: [21, 63]
+      risk_free_rate: 0.04
+    sortino:
+      enabled: true
+      window: [21, 63]
+      target_return: 0.0
+    max_drawdown:
+      enabled: true
+      window: 252
+    calmar:
+      enabled: true
+      window: 252
+  
+  trend:
+    sma:
+      enabled: true
+      window: [20, 50, 200]
+    ema:
+      enabled: true
+      window: [20, 50, 200]
+    macd:
+      enabled: true
+      fast_window: [12, 24]
+      slow_window: [26, 52]
+      signal_window: [9, 12]
+    adx:
+      enabled: true
+      window: [14, 21]
+ 
+  volatility:
+    bollinger:
+      enabled: true
+      window: [21, 63]
+      num_std: [2.0, 2.0]
+    tr:
+      enabled: true
+    max_tr:
+      enabled: true
+      window: [21, 63]
+    atr:
+      enabled: true
+      window: [21, 63]
+    stddev:
+      enabled: true
+      window: [21, 63]
+
+  volume:
+    vsma:
+      enabled: true
+      window: [21, 63]
+    vema:
+      enabled: true
+      window: [21, 63]
+    pvt:
+      enabled: true
+    obv:
+      enabled: true
+    cmf:
+      enabled: true
+      window: [21, 63]
+ 

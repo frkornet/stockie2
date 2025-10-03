@@ -5,11 +5,14 @@ load_stock_prices:
   log_filename: /mnt/log/stockie/dev/load_stock_prices.log
   log_level: INFO
   console: false
+  batch_size: 100
+  processes: 1
+  max_consecutive_batch_failures: 10
 
 calculate_indicators: 
   profile: false
   calculate_processes: 4
-  cvs_directory: /mnt/staging/stockie/dev/indicators/
+  csv_directory: /mnt/staging/stockie/dev/indicators/
   concatenate_dataframes: false
   save_every_n_tickers: 100
   log_filename: /mnt/log/stockie/dev/calculate_indicators.log
@@ -18,7 +21,7 @@ calculate_indicators:
 
 load_indicators:
   load_processes: 4
-  cvs_directory: /mnt/staging/stockie/dev/indicators
+  csv_directory: /mnt/staging/stockie/dev/indicators
   log_filename: /mnt/log/stockie/dev/load_indicators.log
   log_level: INFO
   console: false

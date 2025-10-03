@@ -41,7 +41,7 @@ create table stock_prices (
     high REAL,
     low REAL,
     close REAL,
-    volume BIGINT,
+    volume NUMERIC(20,0),
     adj_close REAL
 ) tablespace stockie_data_ts;
 
@@ -94,7 +94,7 @@ create table stock_prices (
     high REAL,
     low REAL,
     close REAL,
-    volume BIGINT,
+    volume NUMERIC(20,0),
     adj_close REAL
 ) tablespace stockie_dev_data_ts;
 

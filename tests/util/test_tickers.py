@@ -1,9 +1,56 @@
 # tests/util/test_tickers.py
 
 import pytest
+import os
+import tempfile
+import yaml
 import pandas as pd
 from unittest.mock import patch, MagicMock
-from stockie.util import Tickers
+from stockie.util.tickers import Tickers
+
+@pytest.fixture
+def default_ticker_config():
+    """Default ticker configuration with all sources disabled"""
+    return {
+        "tickers": {
+            "nyse": False,
+            "nyse_american": False,
+            "nyse_arca": False,
+            "sp500": False,
+            "dow30": False,
+            "nasdaq": False,
+            "nasdaq100": False,
+            "russell2000": False
+        }
+    }
+
+@pytest.fixture
+def temp_config_dir(default_ticker_config):
+    """Create a temporary directory with test config files"""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Create .env file
+        env_content = "ENVIRONMENT=dev\nDB_PASSWORD=test_password\n"
+        with open(os.path.join(temp_dir, '.env'), 'w') as f:
+            f.write(env_content)
+        
+        # Create settings-dev.yaml with default ticker config
+        with open(os.path.join(temp_dir, 'settings-dev.yaml'), 'w') as f:
+            yaml.dump(default_ticker_config, f)
+        
+        yield temp_dir
+
+def test_tickers_init():
+    """Test Tickers initialization"""
+    mock_logger = MagicMock()
+    full_config = {
+        "tickers": {
+            "benchmarks": ["SPY"],
+            "nyse": False,
+            "sp500": True
+        }
+    }
+    tickers = Tickers(mock_logger, full_config)
+    assert tickers is not None
 
 class TestTickers:
 
@@ -27,19 +74,15 @@ class TestTickers:
         }
 
     @patch("stockie.util.tickers.pd.read_html")
-    @patch("stockie.util.tickers.ConfigLoader")
-    def test_get_sp500_tickers(self, mock_config_loader, mock_read_html, mock_logger, ticker_config_all_true):
-        mock_config_loader().get.return_value = ticker_config_all_true
+    def test_get_sp500_tickers(self, mock_read_html, mock_logger, ticker_config_all_true):
         mock_df = pd.DataFrame({"Symbol": ["AAPL", "MSFT", "GOOGL"]})
         mock_read_html.return_value = [mock_df]
 
-        tickers = Tickers(mock_logger)
+        tickers = Tickers(mock_logger, ticker_config_all_true)
         assert tickers.sp500_tickers == ["AAPL", "MSFT", "GOOGL"]
 
-    @patch("stockie.util.tickers.ConfigLoader")
-    def test_get_dow30_tickers(self, mock_config_loader, mock_logger, ticker_config_all_true):
-        mock_config_loader().get.return_value = ticker_config_all_true
-        tickers = Tickers(mock_logger)
+    def test_get_dow30_tickers(self, mock_logger, ticker_config_all_true):
+        tickers = Tickers(mock_logger, ticker_config_all_true)
         expected = [
             "AAPL", "AMGN", "AXP", "BA", "CAT", "CRM", "CSCO", "CVX", "DIS", "DOW", "GS", "HD",
             "HON", "IBM", "INTC", "JNJ", "JPM", "KO", "MCD", "MMM", "MRK", "MSFT", "NKE", "PG",
@@ -48,8 +91,7 @@ class TestTickers:
         assert tickers.dow30_tickers == expected
 
     @patch("stockie.util.tickers.pd.read_csv")
-    @patch("stockie.util.tickers.ConfigLoader")
-    def test_get_nyse_tickers(self, mock_config_loader, mock_read_csv, mock_logger):
+    def test_get_nyse_tickers(self, mock_read_csv, mock_logger):
         config = {
             "tickers": {
                 "nyse": True,
@@ -62,20 +104,18 @@ class TestTickers:
                 "russell2000": False
             }
         }
-        mock_config_loader().get.return_value = config
         mock_df = pd.DataFrame({
             "ACT Symbol": ["AAPL", "MSFT", "TSLA"],
             "Exchange": ["N", "N", "P"]
         })
         mock_read_csv.return_value = mock_df
 
-        tickers = Tickers(mock_logger)
+        tickers = Tickers(mock_logger, config)
         assert tickers.nsye_tickers == ["AAPL", "MSFT"]
         assert tickers.nyse_arca_tickers == ["TSLA"]
 
     @patch("stockie.util.tickers.pd.read_csv")
-    @patch("stockie.util.tickers.ConfigLoader")
-    def test_get_nasdaq_tickers(self, mock_config_loader, mock_read_csv, mock_logger):
+    def test_get_nasdaq_tickers(self, mock_read_csv, mock_logger):
         config = {
             "tickers": {
                 "nyse": False,
@@ -88,17 +128,14 @@ class TestTickers:
                 "russell2000": False
             }
         }
-        mock_config_loader().get.return_value = config
         mock_df = pd.DataFrame({"Symbol": ["AAPL", "TSLA", None]})
         mock_read_csv.return_value = mock_df
 
-        tickers = Tickers(mock_logger)
+        tickers = Tickers(mock_logger, config)
         assert tickers.nasdaq_tickers == ["AAPL", "TSLA"]
 
     @patch("stockie.util.tickers.requests.get")
-    @patch("stockie.util.tickers.ConfigLoader")
-    def test_get_nasdaq100_tickers(self, mock_config_loader, mock_requests_get, mock_logger, ticker_config_all_true):
-        mock_config_loader().get.return_value = ticker_config_all_true
+    def test_get_nasdaq100_tickers(self, mock_requests_get, mock_logger, ticker_config_all_true):
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -113,11 +150,10 @@ class TestTickers:
         }
         mock_requests_get.return_value = mock_response
 
-        tickers = Tickers(mock_logger)
+        tickers = Tickers(mock_logger, ticker_config_all_true)
         assert tickers.nasdaq100_tickers == ["AAPL", "TSLA"]
 
-    @patch("stockie.util.tickers.ConfigLoader")
-    def test_get_all_tickers(self, mock_config_loader, mock_logger):
+    def test_get_all_tickers(self, mock_logger):
         config = {
             "tickers": {
                 "nyse": False,
@@ -130,6 +166,5 @@ class TestTickers:
                 "russell2000": False
             }
         }
-        mock_config_loader().get.return_value = config
-        tickers = Tickers(mock_logger)
+        tickers = Tickers(mock_logger, config)
         assert tickers.all_tickers == tickers.dow30_tickers

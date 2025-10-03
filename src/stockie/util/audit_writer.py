@@ -1,4 +1,4 @@
-from stockie.db.database_utilities import DatabaseUtilities
+from stockie.db.database_facade import DatabaseFacade
 
 class AuditWriter:
     """
@@ -6,7 +6,7 @@ class AuditWriter:
     """
 
     def __init__(self, conn):
-        self.db_util = DatabaseUtilities(conn)
+        self.db_util = DatabaseFacade(conn)
 
     def log_change_summary(self, ticker, reason, columns_changed):
         """

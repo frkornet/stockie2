@@ -14,7 +14,7 @@ class TestAuditWriter:
 
     @pytest.fixture
     def writer(self, mock_conn, mock_db_util):
-        with patch("stockie.util.audit_writer.DatabaseUtilities", return_value=mock_db_util):
+        with patch("stockie.util.audit_writer.DatabaseFacade", return_value=mock_db_util):
             return AuditWriter(mock_conn)
 
     def test_log_change_summary_with_columns(self, writer, mock_db_util):

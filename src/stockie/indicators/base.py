@@ -61,7 +61,7 @@ class BaseIndicators:
         if self.use_log_returns:
             ret = np.log(series / series.shift(1))
         else:
-            ret = series.pct_change()
+            ret = series.pct_change(fill_method=None)
 
         if fillna:
             ret = ret.fillna(0)

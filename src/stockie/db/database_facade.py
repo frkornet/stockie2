@@ -3,12 +3,13 @@ from psycopg2.extras import execute_values
 from collections.abc import Iterable
 import pandas as pd
 from datetime import date
-from typing import List
+from typing import List, Callable, Any
 
-class DatabaseUtilities:
+class DatabaseFacade:
     def __init__(self, conn):
         self.conn = conn
         self.cur = conn.cursor()
+        self.conn.autocommit = True
 
     #############################################################
     ###                Common database methods                ###
@@ -46,6 +47,38 @@ class DatabaseUtilities:
         except Exception as e:
             self.conn.rollback()
             raise RuntimeError(f"Failed to truncate table '{table_name}': {e}")
+
+    def with_transaction(self, func: Callable, *args, **kwargs) -> Any:
+        """
+        Execute a function within a transaction with automatic rollback on error.
+        
+        This method temporarily disables autocommit, executes the function within
+        a transaction, and automatically commits on success or rolls back on error.
+        
+        Args:
+            func: Function to execute within the transaction
+            *args: Positional arguments to pass to the function
+            **kwargs: Keyword arguments to pass to the function
+            
+        Returns:
+            The return value of the executed function
+            
+        Raises:
+            Exception: Re-raises any exception from the function after rollback
+        """
+
+        original_autocommit = self.conn.autocommit
+        self.conn.autocommit = False
+        
+        try:
+            result = func(*args, **kwargs)
+            self.conn.commit()
+            return result
+        except Exception as e:
+            self.conn.rollback()
+            raise e
+        finally:
+            self.conn.autocommit = original_autocommit
 
     #############################################################
     ### Methods for interacting with stock_price_audit table  ###
@@ -90,6 +123,13 @@ class DatabaseUtilities:
         else:
             df = pd.DataFrame(rows, columns=columns).set_index("date")
             df.index = pd.to_datetime(df.index)
+            
+            # Convert decimal columns to float for calculations
+            numeric_columns = ["close", "low", "high", "volume"]
+            for col in numeric_columns:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                    
         df.name = ticker
 
         return df
@@ -165,10 +205,18 @@ class DatabaseUtilities:
         """
         try:
             with self.conn.cursor() as cur:
-                cur.execute(f"""
-                    COPY technical_indicators(ticker, indicator, date, value)
-                    FROM '{file_path}' WITH (FORMAT csv, HEADER true);
-                """)
+                with open(file_path, 'r') as f:
+                    cur.copy_expert(
+                        """
+                        COPY technical_indicators(ticker, indicator, date, value)
+                        FROM STDIN WITH (
+                            FORMAT csv,
+                            HEADER true,
+                            QUOTE '"'
+                        )
+                        """,
+                        f
+                    )
             self.conn.commit()
         except Exception as e:
             self.conn.rollback()

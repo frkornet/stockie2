@@ -10,12 +10,12 @@ import pstats
 
 from importlib import import_module
 from pathlib import Path
-from stockie.db import DatabaseUtilities
+from stockie.db import DatabaseFacade
 from stockie.loaders.config_loader import ConfigLoader
 from stockie.log.custom_logger import CustomLogger
 
 class CalculateIndicators:
-    def __init__(self, db_util: DatabaseUtilities, config: dict):
+    def __init__(self, db_util: DatabaseFacade, config: dict):
         """
         Initializes the indicator runner with database access and config.
 
@@ -46,12 +46,12 @@ class CalculateIndicators:
         ).get_logger()
 
         self.ticker_indicators_df = pd.DataFrame(columns=["ticker", "indicator", "date", "value"])
-        self.cvs_header = True
+        self.csv_header = True
         self.ticker_df_cache = {}
         self.ticker_counter = 0
         
         calc_indicators_config = config.get("calculate_indicators", {})
-        self.cvs_directory = calc_indicators_config.get("cvs_directory", "/tmp/")
+        self.csv_directory = calc_indicators_config.get("csv_directory", "/tmp/")
         self.save_every_n_tickers = calc_indicators_config.get("save_every_n_tickers", 10)
         self.concatenate_dataframes = calc_indicators_config.get("concatenate_dataframes", True)
         
@@ -69,7 +69,7 @@ class CalculateIndicators:
         """
         self.logger.info(f'\n\n *** Starting calculate technical indicators run.')
         benchmark_data = self._resolve_dependencies(self.indicator_config)
-        self._remove_cvs_file(part)
+        self._remove_csv_file(part)
 
         for ticker in tickers:
             df = self.db_util.fetch_price_data(ticker)
@@ -121,14 +121,14 @@ class CalculateIndicators:
             self._save_ticker_indicators(ticker, part, force=True)    
         self.logger.info(f'*** Finished calculate technical indicator run.')
         
-    def _remove_cvs_file(self, part):
+    def _remove_csv_file(self, part):
         """
         Removes the CSV file if it exists.
         """
-        self.cvs_file_name = f"{self.cvs_directory}indicators_part_{part}.csv"
-        cvs_file = Path(self.cvs_file_name)
-        if cvs_file.exists():
-            cvs_file.unlink()
+        self.csv_file_name = f"{self.csv_directory}indicators_part_{part}.csv"
+        csv_file = Path(self.csv_file_name)
+        if csv_file.exists():
+            csv_file.unlink()
         
     def _save_ticker_indicators(self, ticker: str, part: int, force=False):
         """
@@ -138,32 +138,32 @@ class CalculateIndicators:
         self.ticker_indicators_df = self.ticker_indicators_df.iloc[0:0]
 
         if (self.ticker_counter + 1) % self.save_every_n_tickers == 0 or force:
-            self._save_dfs_to_cvs(ticker, part)
+            self._save_dfs_to_csv(ticker, part)
         else:
             self.ticker_counter += 1
 
-    def _save_dfs_to_cvs(self, ticker: str, part: int):
+    def _save_dfs_to_csv(self, ticker: str, part: int):
         """ 
         Saves the cached DataFrames to a CSV file. 
         If `concatenate_dataframes` is True, it concatenates all DataFrames before saving to CSV.
         """
-        self.logger.info(f"Saving indicators for {self.ticker_counter + 1} tickers to {self.cvs_file_name}...")
+        self.logger.info(f"Saving indicators for {self.ticker_counter + 1} tickers to {self.csv_file_name}...")
 
         if self.concatenate_dataframes:
             dfs = pd.concat(self.ticker_df_cache.values(), ignore_index=True)
             dfs.to_csv(
-                self.cvs_file_name, encoding='utf-8',
-                index=False, mode='a', quoting=csv.QUOTE_ALL, header=self.cvs_header
+                self.csv_file_name, encoding='utf-8',
+                index=False, mode='a', quoting=csv.QUOTE_ALL, header=self.csv_header
             )
-            self.cvs_header = False
+            self.csv_header = False
         else:
             for t_df in self.ticker_df_cache.values():
                 if not t_df.empty:
                     t_df.to_csv(
-                        self.cvs_file_name, encoding='utf-8',
-                        index=False, mode='a', quoting=csv.QUOTE_ALL, header=self.cvs_header
+                        self.csv_file_name, encoding='utf-8',
+                        index=False, mode='a', quoting=csv.QUOTE_ALL, header=self.csv_header
                     )
-                    self.cvs_header = False
+                    self.csv_header = False
         
         self.ticker_df_cache.clear()
         self.ticker_counter = 0
@@ -232,35 +232,32 @@ def chunk_list(lst, n):
 def worker(tickers_chunk, config, part):
     """Worker function to run indicator calculations on a chunk of tickers."""
     db_conn = psycopg2.connect(**config["db"])
-    db_util = DatabaseUtilities(db_conn)
+    db_util = DatabaseFacade(db_conn)
     runner = CalculateIndicators(db_util, config)
     runner.run(tickers_chunk, part)
     db_conn.close()
 
-def calculate_indicators(config_dir):
+def calculate_indicators(db_facade, full_config: dict):
     """
-    Main function to calculate indicators and store the result in CSV files.
+    Calculate technical indicators using the provided database facade and configuration.
+    
+    Args:
+        db_facade: DatabaseFacade instance to use
+        full_config: Full configuration dictionary
     """
-    config_loader = ConfigLoader(
-        config_path=os.path.join(config_dir, "settings.yaml"),
-        dotenv_path=os.path.join(config_dir, ".env")
-    )
-    config = config_loader.get()
-    db_config = config["db"]
-    db_conn = psycopg2.connect(**db_config)
-    db_util = DatabaseUtilities(db_conn)
+    tickers = db_facade.get_unique_tickers()
 
-    tickers = db_util.get_unique_tickers()
-
-    n_processes = config.get("calculate_indicators", {}).get("calculate_processes", 1)
+    indicator_config = full_config.get("calculate_indicators", {})
+    n_processes = indicator_config.get("calculate_processes", 1)
+    
     if n_processes > 1:
         chunks = chunk_list(tickers, n_processes)
-        benchmarks = config.get("tickers", {}).get("benchmarks", [])
+        benchmarks = full_config.get("tickers", {}).get("benchmarks", [])
 
         process_list = []
         for i, chunk in enumerate(chunks):
             chunk = sorted(list(set(chunk + benchmarks)))
-            p = multiprocessing.Process(target=worker, args=(chunk, config, i))
+            p = multiprocessing.Process(target=worker, args=(chunk, full_config, i))
             p.start()
             process_list.append(p)
 
@@ -268,10 +265,8 @@ def calculate_indicators(config_dir):
             p.join()
 
     else:
-        indicator_runner = CalculateIndicators(db_util, config)
+        indicator_runner = CalculateIndicators(db_facade, full_config)
         indicator_runner.run(tickers)
-
-    db_conn.close()
 
 def export_profile_to_csv(stats, filename="profile.csv"):
     with open(filename, "w", newline="") as f:
@@ -281,32 +276,3 @@ def export_profile_to_csv(stats, filename="profile.csv"):
             func_name = f"{func[0]}:{func[1]}({func[2]})"
             cc, nc, tt, ct, callers = stat
             writer.writerow([func_name, nc, tt, ct])
-
-def main():
-    parser = argparse.ArgumentParser(description="Calculate technical indicators and store results in CSV files.")
-    parser.add_argument("--config-dir", default="/mnt/repos/stockie/config/", help="Directory containing settings.yaml and .env")
-    args = parser.parse_args()
-
-    config_loader = ConfigLoader(
-        config_path=os.path.join(args.config_dir, "settings.yaml"),
-        dotenv_path=os.path.join(args.config_dir, ".env")
-    )
-    config = config_loader.get()
-    profile = config.get("calculate_indicators", {}).get("profile", False)
-
-    if profile:
-        print("Profiling is enabled. This may take a while...")
-        profiler = cProfile.Profile()
-        profiler.enable()
-
-    calculate_indicators(args.config_dir)
-
-    if profile:
-        profiler.disable()
-        stats = pstats.Stats(profiler).strip_dirs().sort_stats("cumtime")
-        stats.print_stats(30)
-        stats.dump_stats("profile_output.prof")
-        export_profile_to_csv(stats, "profile_output.csv")
-
-if __name__ == "__main__":
-    main()

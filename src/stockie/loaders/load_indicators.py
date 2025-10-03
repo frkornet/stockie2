@@ -7,10 +7,10 @@ from glob import glob
 from dotenv import load_dotenv
 from multiprocessing import Process
 from stockie.log.custom_logger import CustomLogger
-from stockie.db.database_utilities import DatabaseUtilities
+from stockie.db.database_facade import DatabaseFacade
 from stockie.loaders.config_loader import ConfigLoader
 
-def load_file_batch(file_list, log_path):
+def load_file_batch(file_list, log_path, db_config):
     start_batch = time.time()
 
     logger = CustomLogger(
@@ -21,14 +21,14 @@ def load_file_batch(file_list, log_path):
     load_dotenv()
 
     try:
-        conn = psycopg2.connect(dbname="stockie_db", user="stockie", password=os.getenv('DB_PASSWORD'))
-        db_util = DatabaseUtilities(conn)
+        conn = psycopg2.connect(**db_config)
+        db_facade = DatabaseFacade(conn)
 
         for file_path in file_list:
             logger.info(f"Loading file: {file_path}")
             start_file = time.time()
             try:
-                db_util.copy_from_file(file_path)
+                db_facade.copy_from_file(file_path)
                 duration_file = (time.time() - start_file)/60
                 logger.info(f"Successfully loaded: {file_path} in {duration_file:.2f} minutes")
             except Exception as e:
@@ -43,30 +43,29 @@ def load_file_batch(file_list, log_path):
     duration_batch = (time.time() - start_batch)/60
     logger.info(f"Batch completed in {duration_batch:.2f} minutes with {len(file_list)} file(s)")
 
-def load_technical_indicators(config_dir):
+def load_technical_indicators(db_facade, full_config: dict) -> None:
+    """
+    Load technical indicators using the provided database facade and configuration.
+    
+    Args:
+        db_facade: DatabaseFacade instance to use
+        full_config: Full configuration dictionary
+    """
     start = time.time()
 
-    # Load settings from YAML
-    config_loader = ConfigLoader(
-        config_path=os.path.join(config_dir, "settings.yaml"),
-        dotenv_path=os.path.join(config_dir, ".env")
-    )
-    config = config_loader.get()["load_indicators"]
-
-    process_count = config["load_processes"]
-    csv_dir = config["cvs_directory"]
-    log_path, log_level, log_to_console = config["log_filename"], config["log_level"], config['console']
+    indicator_config = full_config['load_indicators']
 
     logger = CustomLogger(
         name=__file__,
-        log_to_console=log_to_console,
-        log_level=log_level,
-        log_dir=os.path.dirname(log_path),
-        log_filename=os.path.basename(log_path)
+        log_to_console=indicator_config['console'],
+        log_level=indicator_config['log_level'],
+        log_dir=os.path.dirname(indicator_config['log_filename']),
+        log_filename=os.path.basename(indicator_config['log_filename'])
     ).get_logger()
     logger.info(f'\n\n *** Starting load technical indicators job.')
 
     # Discover CSV files
+    csv_dir = indicator_config["csv_directory"]
     file_list = sorted(glob(os.path.join(csv_dir, "indicators_part*.csv")))
     total_files = len(file_list)
 
@@ -75,6 +74,7 @@ def load_technical_indicators(config_dir):
         return
 
     # Adjust process count based on file count
+    process_count = indicator_config["load_processes"]
     process_count = min(process_count, total_files)
 
     # Distribute files across processes
@@ -84,12 +84,8 @@ def load_technical_indicators(config_dir):
 
     # Truncate table before ingestion
     try:
-        load_dotenv(os.path.join(config_dir, ".env"))
-        conn = psycopg2.connect(dbname="stockie_db", user="stockie", password=os.getenv('DB_PASSWORD'))
-        db_util = DatabaseUtilities(conn)
-        db_util.truncate_table("technical_indicators")
+        db_facade.truncate_table("technical_indicators")
         logger.info("Truncated technical_indicators table.")
-        conn.close()
     except Exception as e:
         logger.exception(f"Failed to truncate table: {e}")
         return
@@ -97,7 +93,7 @@ def load_technical_indicators(config_dir):
     # Launch parallel ingestion processes
     processes = []
     for batch in batches:
-        p = Process(target=load_file_batch, args=(batch, log_path))
+        p = Process(target=load_file_batch, args=(batch, indicator_config['log_filename'], full_config['db']))
         p.start()
         processes.append(p)
 
@@ -107,12 +103,3 @@ def load_technical_indicators(config_dir):
     duration = (time.time() - start)/60
     logger.info(f"All ingestion processes completed in {duration:.2f} minutes.")
     logger.info(f'*** Finished load technical indicators job.')
-
-def main():
-    parser = argparse.ArgumentParser(description="Load technical indicators from CSV files.")
-    parser.add_argument("--config-dir", default="/mnt/repos/stockie/config/", help="Directory containing settings.yaml and .env")
-    args = parser.parse_args()
-    load_technical_indicators(args.config_dir)
-
-if __name__ == '__main__':
-    main()

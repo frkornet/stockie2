@@ -28,7 +28,7 @@ class VolumeIndicators(BaseIndicators):
         """
         close = self.df["close"]
         volume = self.df["volume"]
-        pct_change = close.pct_change()
+        pct_change = close.pct_change(fill_method=None)
 
         pvt = (pct_change * volume).fillna(0).cumsum()
         pvt.name = self._build_indicator_name("pvt")

@@ -31,7 +31,7 @@ def mock_config():
             "console": True,
             "log_level": "INFO",
             "log_filename": "/tmp/test.log",
-            "cvs_directory": "/tmp/",
+            "csv_directory": "/tmp/",
             "save_every_n_tickers": 10,
             "concatenate_dataframes": True,
             "calculate_processes": 1
@@ -77,7 +77,7 @@ class TestCalculateIndicators:
                 "console": True,
                 "log_level": "INFO",
                 "log_filename": "/tmp/test.log",
-                "cvs_directory": "/tmp/",
+                "csv_directory": "/tmp/",
                 "save_every_n_tickers": 10,
                 "concatenate_dataframes": True
             }
@@ -122,7 +122,7 @@ class TestCalculateIndicators:
                 "console": True,
                 "log_level": "INFO",
                 "log_filename": "/tmp/test.log",
-                "cvs_directory": "/tmp/",
+                "csv_directory": "/tmp/",
                 "save_every_n_tickers": 10,
                 "concatenate_dataframes": True
             }
@@ -154,18 +154,18 @@ class TestCalculateIndicators:
         runner = CalculateIndicators(mock_db_util, config)
         runner.run(["AAPL"])
 
-    def test_save_dfs_to_cvs_non_concatenate(self, tmp_path, sample_df, mock_config):
+    def test_save_dfs_to_csv_non_concatenate(self, tmp_path, sample_df, mock_config):
         # Setup CalculateIndicators with concatenate_dataframes=False
         config = mock_config.copy()
         config["calculate_indicators"]["concatenate_dataframes"] = False
-        config["calculate_indicators"]["cvs_directory"] = str(tmp_path) + "/"
+        config["calculate_indicators"]["csv_directory"] = str(tmp_path) + "/"
         config["calculate_indicators"]["log_filename"] = str(tmp_path / "test.log")
 
         mock_db_util = MagicMock()
         from stockie.indicators.calculate_indicators import CalculateIndicators
         runner = CalculateIndicators(mock_db_util, config)
-        runner.cvs_file_name = str(tmp_path / "indicators_part_0.csv")
-        runner.cvs_header = True
+        runner.csv_file_name = str(tmp_path / "indicators_part_0.csv")
+        runner.csv_header = True
 
         # Prepare ticker_df_cache with two non-empty DataFrames
         runner.ticker_df_cache = {
@@ -175,7 +175,7 @@ class TestCalculateIndicators:
 
         # Patch to_csv to monitor calls
         with patch.object(pd.DataFrame, "to_csv", autospec=True) as mock_to_csv:
-            runner._save_dfs_to_cvs("AAPL", 0)
+            runner._save_dfs_to_csv("AAPL", 0)
             # Should call to_csv twice (once for each ticker)
             assert mock_to_csv.call_count == 2
             # Should use the correct file name and header True for first call, False for second
@@ -188,18 +188,18 @@ class TestCalculateIndicators:
             assert first_call.kwargs["encoding"] == "utf-8"
             assert second_call.kwargs["encoding"] == "utf-8"
 
-    def test_save_dfs_to_cvs_else_block(self, tmp_path, sample_df, mock_config):
+    def test_save_dfs_to_csv_else_block(self, tmp_path, sample_df, mock_config):
         # Setup config to use non-concatenate mode
         config = mock_config.copy()
         config["calculate_indicators"]["concatenate_dataframes"] = False
-        config["calculate_indicators"]["cvs_directory"] = str(tmp_path) + "/"
+        config["calculate_indicators"]["csv_directory"] = str(tmp_path) + "/"
         config["calculate_indicators"]["log_filename"] = str(tmp_path / "test.log")
 
         mock_db_util = MagicMock()
         from stockie.indicators.calculate_indicators import CalculateIndicators
         runner = CalculateIndicators(mock_db_util, config)
-        runner.cvs_file_name = str(tmp_path / "indicators_part_0.csv")
-        runner.cvs_header = True
+        runner.csv_file_name = str(tmp_path / "indicators_part_0.csv")
+        runner.csv_header = True
 
         # Create two non-empty DataFrames and one empty DataFrame in the cache
         df1 = sample_df.assign(ticker="AAPL", indicator="rsi", value=1.0).reset_index()
@@ -213,7 +213,7 @@ class TestCalculateIndicators:
 
         # Patch to_csv to monitor calls
         with patch.object(pd.DataFrame, "to_csv", autospec=True) as mock_to_csv:
-            runner._save_dfs_to_cvs("AAPL", 0)
+            runner._save_dfs_to_csv("AAPL", 0)
             # Should call to_csv only for non-empty DataFrames
             assert mock_to_csv.call_count == 2
             # Check that header is True for first call, False for second
@@ -228,81 +228,57 @@ class TestCalculateIndicators:
             assert second_call.kwargs["encoding"] == "utf-8"
 
     def test_calculate_indicators_single_process(self, mock_config):
-        mock_conn = MagicMock()
-        mock_db_util = MagicMock()
-        mock_db_util.get_unique_tickers.return_value = ["AAPL", "GOOG"]
+        mock_db_facade = MagicMock()
+        mock_db_facade.get_unique_tickers.return_value = ["AAPL", "GOOG"]
         mock_runner = MagicMock()
 
         config = mock_config.copy()
         config["calculate_indicators"]["calculate_processes"] = 1
 
-        with patch("stockie.indicators.calculate_indicators.ConfigLoader") as mock_loader, \
-             patch("stockie.indicators.calculate_indicators.psycopg2.connect", return_value=mock_conn), \
-             patch("stockie.indicators.calculate_indicators.DatabaseUtilities", return_value=mock_db_util), \
-             patch("stockie.indicators.calculate_indicators.CalculateIndicators", return_value=mock_runner):
-
-            mock_loader.return_value.get.return_value = config
-
+        with patch("stockie.indicators.calculate_indicators.CalculateIndicators", return_value=mock_runner):
             from stockie.indicators.calculate_indicators import calculate_indicators
-            calculate_indicators("/tmp/")
+            calculate_indicators(mock_db_facade, config)
             mock_runner.run.assert_called_once_with(["AAPL", "GOOG"])
-            mock_conn.close.assert_called_once()
 
     def test_calculate_indicators_multi_process(self, mock_config):
-        mock_conn = MagicMock()
-        mock_db_util = MagicMock()
-        mock_db_util.get_unique_tickers.return_value = ["AAPL", "GOOG"]
+        mock_db_facade = MagicMock()
+        mock_db_facade.get_unique_tickers.return_value = ["AAPL", "GOOG"]
         mock_process = MagicMock()
 
         config = mock_config.copy()
+        # Update config to enable multiprocessing
         config["calculate_indicators"]["calculate_processes"] = 2
         config["tickers"] = {"benchmarks": ["SPY"]}
 
-        with patch("stockie.indicators.calculate_indicators.ConfigLoader") as mock_loader, \
-             patch("stockie.indicators.calculate_indicators.psycopg2.connect", return_value=mock_conn), \
-             patch("stockie.indicators.calculate_indicators.DatabaseUtilities", return_value=mock_db_util), \
-             patch("stockie.indicators.calculate_indicators.multiprocessing.Process", return_value=mock_process):
-
-            mock_loader.return_value.get.return_value = config
-
+        with patch("stockie.indicators.calculate_indicators.multiprocessing.Process", return_value=mock_process):
             from stockie.indicators.calculate_indicators import calculate_indicators
-            calculate_indicators("/tmp/")
+            calculate_indicators(mock_db_facade, config)
             assert mock_process.start.call_count == 2
             assert mock_process.join.call_count == 2
-            mock_conn.close.assert_called_once()
 
     def test_calculate_indicators_db_connection_failure(self, mock_config):
+        mock_db_facade = MagicMock()
+        mock_db_facade.get_unique_tickers.side_effect = Exception("DB fail")
+        
         config = mock_config.copy()
         config["calculate_indicators"]["calculate_processes"] = 1
 
-        with patch("stockie.indicators.calculate_indicators.ConfigLoader") as mock_loader, \
-             patch("stockie.indicators.calculate_indicators.psycopg2.connect", side_effect=Exception("DB fail")):
-            mock_loader.return_value.get.return_value = config
-
-            from stockie.indicators.calculate_indicators import calculate_indicators
-            with pytest.raises(Exception, match="DB fail"):
-                calculate_indicators("/tmp/")
+        from stockie.indicators.calculate_indicators import calculate_indicators
+        with pytest.raises(Exception, match="DB fail"):
+            calculate_indicators(mock_db_facade, config)
 
     def test_calculate_indicators_no_tickers(self, mock_config):
-        mock_conn = MagicMock()
-        mock_db_util = MagicMock()
-        mock_db_util.get_unique_tickers.return_value = []
+        mock_db_facade = MagicMock()
+        mock_db_facade.get_unique_tickers.return_value = []
         mock_runner = MagicMock()
 
         config = mock_config.copy()
         config["calculate_indicators"]["calculate_processes"] = 1
 
-        with patch("stockie.indicators.calculate_indicators.ConfigLoader") as mock_loader, \
-             patch("stockie.indicators.calculate_indicators.psycopg2.connect", return_value=mock_conn), \
-             patch("stockie.indicators.calculate_indicators.DatabaseUtilities", return_value=mock_db_util), \
-             patch("stockie.indicators.calculate_indicators.CalculateIndicators", return_value=mock_runner):
-
-            mock_loader.return_value.get.return_value = config
-
+        with patch("stockie.indicators.calculate_indicators.CalculateIndicators", return_value=mock_runner):
             from stockie.indicators.calculate_indicators import calculate_indicators
-            calculate_indicators("/tmp/")
+            calculate_indicators(mock_db_facade, config)
             mock_runner.run.assert_called_once_with([])
-            mock_conn.close.assert_called_once()
 
     def test_export_profile_to_csv(self, tmp_path):
         # Create a mock stats object with .stats attribute
@@ -340,7 +316,7 @@ class TestCalculateIndicators:
         part = 0
 
         with patch("stockie.indicators.calculate_indicators.psycopg2.connect", return_value=mock_conn), \
-             patch("stockie.indicators.calculate_indicators.DatabaseUtilities", return_value=mock_db_util), \
+             patch("stockie.indicators.calculate_indicators.DatabaseFacade", return_value=mock_db_util), \
              patch("stockie.indicators.calculate_indicators.CalculateIndicators", return_value=mock_runner):
 
             from stockie.indicators.calculate_indicators import worker

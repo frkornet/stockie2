@@ -1,13 +1,13 @@
 import pytest
 import pandas as pd
-from unittest.mock import MagicMock, patch, call
-from stockie.db.database_utilities import DatabaseUtilities
+from unittest.mock import MagicMock, patch, call, mock_open
+from stockie.db.database_facade import DatabaseFacade
 from datetime import date
 
 def normalize_sql(sql):
     return "\n".join(line.strip() for line in sql.strip().splitlines())
 
-class TestDatabaseUtilities:
+class TestDatabaseFacade:
 
     @pytest.fixture
     def mock_conn(self):
@@ -24,7 +24,7 @@ class TestDatabaseUtilities:
         mock_cursor = mock_conn.cursor.return_value
         mock_cursor.fetchall.return_value = [("stock_prices",)]
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         result = db_util.table_exists("stock_prices")
 
         mock_cursor.execute.assert_called_once()
@@ -34,7 +34,7 @@ class TestDatabaseUtilities:
         mock_cursor = mock_conn.cursor.return_value
         mock_cursor.fetchall.return_value = []
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         result = db_util.table_exists("ghost_table")
 
         assert result is False
@@ -43,7 +43,7 @@ class TestDatabaseUtilities:
         mock_cursor = mock_conn.cursor.return_value
         mock_cursor.fetchall.return_value = [("stock_prices",), ("stock_price_audit",)]
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         result = db_util.table_exists(["stock_prices", "stock_price_audit"])
 
         assert result is True
@@ -52,18 +52,18 @@ class TestDatabaseUtilities:
         mock_cursor = mock_conn.cursor.return_value
         mock_cursor.fetchall.return_value = [("stock_prices",)]  # only one found
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         result = db_util.table_exists(["stock_prices", "stock_price_audit"])
 
         assert result is False
 
     def test_raises_type_error_on_non_iterable(self, mock_conn):
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         with pytest.raises(TypeError):
             db_util.table_exists(42)
 
     def test_raises_value_error_on_non_string_in_list(self, mock_conn):
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         with pytest.raises(ValueError):
             db_util.table_exists(["stock_prices", 123])
 
@@ -72,7 +72,7 @@ class TestDatabaseUtilities:
         mock_conn.cursor.return_value = mock_cursor
         mock_cursor.fetchall.return_value = [("stock_prices",)]
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         result = db_util.table_exists("stock_prices")
 
         mock_cursor.execute.assert_called_once()
@@ -83,7 +83,7 @@ class TestDatabaseUtilities:
         mock_conn.cursor.return_value = mock_cursor
         mock_cursor.fetchall.return_value = [("stock_prices",), ("stock_price_audit",)]
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         result = db_util.table_exists(["stock_prices", "stock_price_audit"])
 
         mock_cursor.execute.assert_called_once()
@@ -94,7 +94,7 @@ class TestDatabaseUtilities:
         mock_conn.cursor.return_value = mock_cursor
         mock_cursor.fetchall.return_value = []
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         result = db_util.table_exists("nonexistent_table")
 
         mock_cursor.execute.assert_called_once()
@@ -104,14 +104,14 @@ class TestDatabaseUtilities:
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         db_util.truncate_table("my_table")
 
         mock_cursor.execute.assert_called_once()
         mock_conn.commit.assert_called_once()
 
     def test_truncate_table_type_error(self, mock_conn):
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         with pytest.raises(TypeError):
             db_util.truncate_table(123)
 
@@ -120,7 +120,7 @@ class TestDatabaseUtilities:
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.execute.side_effect = Exception("DB error")
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         with pytest.raises(RuntimeError, match="Failed to truncate table 'my_table'"):
             db_util.truncate_table("my_table")
         mock_conn.rollback.assert_called_once()
@@ -130,7 +130,7 @@ class TestDatabaseUtilities:
     #############################################################
 
     def test_write_audit_message(self, mock_conn):
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         ticker, message = "AAPL", "Test audit message"
 
         db_util.write_audit_message(ticker, message)
@@ -154,7 +154,7 @@ class TestDatabaseUtilities:
         mock_cursor.fetchall.return_value = [('AAPL',), ('MSFT',), ('NVDA',)]
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         tickers = db_util.get_unique_tickers()
 
         mock_cursor.execute.assert_called_once_with("SELECT DISTINCT ticker FROM stock_prices ORDER BY ticker;")
@@ -165,7 +165,7 @@ class TestDatabaseUtilities:
         mock_cursor.fetchall.return_value = []
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         tickers = db_util.get_unique_tickers()
 
         mock_cursor.execute.assert_called_once_with("SELECT DISTINCT ticker FROM stock_prices ORDER BY ticker;")
@@ -180,7 +180,7 @@ class TestDatabaseUtilities:
         ]
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         df = db_util.fetch_price_data("AAPL")
 
         mock_cursor.execute.assert_called_once_with("""
@@ -204,7 +204,7 @@ class TestDatabaseUtilities:
         mock_cursor.fetchall.return_value = []
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         df = db_util.fetch_price_data("ZZZZ")
 
         assert isinstance(df, pd.DataFrame)
@@ -217,7 +217,7 @@ class TestDatabaseUtilities:
         mock_cursor.fetchall.return_value = [
             ("2023-01-01", 100, 110, 90, 105, 105, 10000),
         ]
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         ticker, start_date = "AAPL", date(2023, 1, 1)
 
         df = db_util.fetch_price_after_start_date(ticker, start_date)
@@ -244,7 +244,7 @@ class TestDatabaseUtilities:
             (date(2023, 1, 2),),
             (date(2023, 1, 3),),
         ]
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         result = db_util.get_price_dates("AAPL")
 
         mock_cursor.execute.assert_called_once_with(
@@ -253,7 +253,7 @@ class TestDatabaseUtilities:
         assert result == {date(2023, 1, 1), date(2023, 1, 2), date(2023, 1, 3)}
 
     def test_delete_price_by_dates(self, mock_conn):
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         ticker = "AAPL"
         dates = [date(2023, 1, 1), date(2023, 1, 2)]
         db_util.delete_price_by_dates(ticker, dates)
@@ -268,9 +268,9 @@ class TestDatabaseUtilities:
         assert db_util.cur.execute.call_args[0][1] == (ticker, dates)
         mock_conn.commit.assert_called_once()
 
-    @patch("stockie.db.database_utilities.execute_values")
+    @patch("stockie.db.database_facade.execute_values")
     def test_insert_price_data(self, mock_execute_values, mock_conn):
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         data = [
             ("AAPL", date(2023, 1, 1), 100, 110, 90, 105, 10000),
             ("AAPL", date(2023, 1, 2), 106, 112, 95, 110, 12000),
@@ -301,17 +301,17 @@ class TestDatabaseUtilities:
             name="sma_3"
         )
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
 
         # Patch the method inside the class, isolate psycopg2 entirely
-        with patch("stockie.db.database_utilities.execute_values") as mock_ev:
+        with patch("stockie.db.database_facade.execute_values") as mock_ev:
             db_util.insert_indicator_series(series, "AAPL", "sma_3")
 
             assert mock_ev.called
             mock_conn.commit.assert_called_once()
 
     def test_insert_indicator_series_type_error(self, mock_conn):
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         bad_input = [0.1, 0.2, 0.3]  # Not a Series
 
         with pytest.raises(TypeError, match="Expected a pandas Series"):
@@ -328,9 +328,9 @@ class TestDatabaseUtilities:
             name="sma_3"
         )
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
 
-        with patch("stockie.db.database_utilities.execute_values") as mock_ev:
+        with patch("stockie.db.database_facade.execute_values") as mock_ev:
             db_util.insert_indicator_series(empty_series, "AAPL", "sma_3")
 
             mock_ev.assert_not_called()
@@ -339,29 +339,66 @@ class TestDatabaseUtilities:
     def test_copy_from_file_success(self, mock_conn):
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-
-        db_util = DatabaseUtilities(mock_conn)
+    
+        db_util = DatabaseFacade(mock_conn)
         file_path = "/tmp/test.csv"
-        db_util.copy_from_file(file_path)
+    
+        # Mock the file operations
+        mock_file_content = "ticker,indicator,date,value\nAAPL,RSI,2023-01-01,65.5\n"
+    
+        with patch("builtins.open", mock_open(read_data=mock_file_content)) as mock_file:
+            db_util.copy_from_file(file_path)
+        
+            # Verify file was opened
+            mock_file.assert_called_once_with(file_path, 'r')
+        
+            # Verify copy_expert was called correctly (changed from copy_from)
+            mock_cursor.copy_expert.assert_called_once()
+        
+            # Check the SQL command and file object
+            call_args = mock_cursor.copy_expert.call_args
+            sql_command = call_args[0][0]
+            file_obj = call_args[0][1]
+        
+            # Verify the SQL contains the expected COPY command
+            assert "COPY technical_indicators" in sql_command
+            assert "FORMAT csv" in sql_command
+            assert "HEADER true" in sql_command
+        
+            # Verify commit was called
+            mock_conn.commit.assert_called_once()
 
-        sql_arg = mock_cursor.execute.call_args[0][0]
-        expected_sql = f"""
-            COPY technical_indicators(ticker, indicator, date, value)
-            FROM '{file_path}' WITH (FORMAT csv, HEADER true);
-        """
-        assert normalize_sql(sql_arg) == normalize_sql(expected_sql)
-        mock_conn.commit.assert_called_once()
+    def test_copy_from_file_error(self, mock_conn):
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_cursor.copy_expert.side_effect = Exception("Database error")  # Changed from copy_from
+    
+        db_util = DatabaseFacade(mock_conn)
+        file_path = "/tmp/test.csv"
+    
+        mock_file_content = "ticker,indicator,date,value\nAAPL,RSI,2023-01-01,65.5\n"
+    
+        with patch("builtins.open", mock_open(read_data=mock_file_content)):
+            with pytest.raises(RuntimeError, match="Failed to load /tmp/test.csv"):
+                db_util.copy_from_file(file_path)
+            
+            # Verify rollback was called
+            mock_conn.rollback.assert_called_once()
 
     def test_copy_from_file_raises_runtime_error(self, mock_conn):
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        mock_cursor.execute.side_effect = Exception("fail")
+        mock_cursor.copy_expert.side_effect = Exception("fail")  # Changed from execute to copy_expert
 
-        db_util = DatabaseUtilities(mock_conn)
+        db_util = DatabaseFacade(mock_conn)
         file_path = "/tmp/test.csv"
-        with pytest.raises(RuntimeError, match="Failed to load /tmp/test.csv: fail"):
-            db_util.copy_from_file(file_path)
-        mock_conn.rollback.assert_called_once()
+        
+        mock_file_content = "ticker,indicator,date,value\nAAPL,RSI,2023-01-01,65.5\n"
+        
+        with patch("builtins.open", mock_open(read_data=mock_file_content)):
+            with pytest.raises(RuntimeError, match="Failed to load /tmp/test.csv: fail"):
+                db_util.copy_from_file(file_path)
+            mock_conn.rollback.assert_called_once()
 
 if __name__ == "__main__":
     import sys

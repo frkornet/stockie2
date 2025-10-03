@@ -2,14 +2,12 @@
 
 import pandas as pd
 import requests
-from stockie.loaders import ConfigLoader
 from io import StringIO
 
 class Tickers:
-    def __init__(self, logger):
+    def __init__(self, logger, full_config: dict):
         self.logger = logger
-        self.config = ConfigLoader().get()
-        self.ticker_config = self.config["tickers"]
+        self.ticker_config = full_config["tickers"]
         self.logger.info("Initialized Tickers with config:")
         self.logger.info(f"{self.ticker_config=}")
 
