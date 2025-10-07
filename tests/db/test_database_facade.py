@@ -125,6 +125,98 @@ class TestDatabaseFacade:
             db_util.truncate_table("my_table")
         mock_conn.rollback.assert_called_once()
 
+    @patch('time.time')
+    def test_vacuum_full_table_success(self, mock_time, mock_conn):
+        # Mock time.time() to return predictable values
+        mock_time.side_effect = [1000.0, 1003.5]  # 3.5 second duration
+        
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        
+        db_util = DatabaseFacade(mock_conn)
+        result = db_util.vacuum_full_table('technical_indicators')
+        
+        # Verify SQL execution
+        mock_cursor.execute.assert_called_once()
+        call_args = mock_cursor.execute.call_args[0][0]
+        # Check if it's a composed SQL object with the correct structure
+        from psycopg2 import sql
+        if isinstance(call_args, sql.Composed):
+            # Verify it's composed of SQL("VACUUM FULL ") + Identifier('technical_indicators')
+            assert len(call_args.seq) == 2
+            assert isinstance(call_args.seq[0], sql.SQL)
+            assert call_args.seq[0]._wrapped == "VACUUM FULL "
+            assert isinstance(call_args.seq[1], sql.Identifier)
+            assert call_args.seq[1]._wrapped == ("technical_indicators",)
+        else:
+            assert str(call_args) == "VACUUM FULL technical_indicators"
+        mock_conn.commit.assert_called_once()
+        
+        # Verify result
+        expected_result = {
+            'success': True,
+            'duration_seconds': 3.5,
+            'duration_minutes': 0.1,
+            'error_message': None,
+            'table_name': 'technical_indicators'
+        }
+        assert result == expected_result
+
+    @patch('time.time')
+    def test_vacuum_full_table_failure(self, mock_time, mock_conn):
+        # Mock time.time() for start time
+        mock_time.return_value = 1000.0
+        
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_cursor.execute.side_effect = Exception("VACUUM failed")
+        
+        db_util = DatabaseFacade(mock_conn)
+        result = db_util.vacuum_full_table('test_table')
+        
+        # Verify SQL execution was attempted
+        mock_cursor.execute.assert_called_once()
+        call_args = mock_cursor.execute.call_args[0][0]
+        # Check if it's a composed SQL object with the correct structure
+        from psycopg2 import sql
+        if isinstance(call_args, sql.Composed):
+            # Verify it's composed of SQL("VACUUM FULL ") + Identifier('test_table')
+            assert len(call_args.seq) == 2
+            assert isinstance(call_args.seq[0], sql.SQL)
+            assert call_args.seq[0]._wrapped == "VACUUM FULL "
+            assert isinstance(call_args.seq[1], sql.Identifier)
+            assert call_args.seq[1]._wrapped == ("test_table",)
+        else:
+            assert str(call_args) == "VACUUM FULL test_table"
+        mock_conn.rollback.assert_called_once()
+        
+        # Verify result
+        expected_result = {
+            'success': False,
+            'duration_seconds': 0,
+            'duration_minutes': 0,
+            'error_message': 'VACUUM failed',
+            'table_name': 'test_table'
+        }
+        assert result == expected_result
+
+    @patch('time.time')
+    def test_vacuum_full_table_long_duration(self, mock_time, mock_conn):
+        # Mock time.time() to simulate 2.5 minute duration
+        mock_time.side_effect = [1000.0, 1150.0]  # 150 second duration
+        
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        
+        db_util = DatabaseFacade(mock_conn)
+        result = db_util.vacuum_full_table('large_table')
+        
+        # Verify result has correct timing
+        assert result['success'] is True
+        assert result['duration_seconds'] == 150.0
+        assert result['duration_minutes'] == 2.5
+        assert result['table_name'] == 'large_table'
+
     #############################################################
     ### Methods for interacting with stock_price_audit table  ###
     #############################################################
@@ -291,113 +383,84 @@ class TestDatabaseFacade:
     ### Methods for interacting with technical_indicators table ###
     ###############################################################
 
-    def test_insert_indicator_series(self, mock_conn):
+    def test_bulk_insert_indicators_jsonb(self, mock_conn):
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
-        series = pd.Series(
-            [0.1, 0.2, 0.3],
-            index=pd.to_datetime(["2023-01-01", "2023-01-02", "2023-01-03"]),
-            name="sma_3"
-        )
+        # Create test DataFrame matching the expected structure
+        test_df = pd.DataFrame({
+            'ticker': ['AAPL', 'AAPL'],
+            'indicator': ['sma_20', 'rsi_14'],
+            'date_values': [
+                {'2023-01-01': 150.0, '2023-01-02': 152.0},
+                {'2023-01-01': 65.5, '2023-01-02': 67.2}
+            ]
+        })
 
         db_util = DatabaseFacade(mock_conn)
 
-        # Patch the method inside the class, isolate psycopg2 entirely
         with patch("stockie.db.database_facade.execute_values") as mock_ev:
-            db_util.insert_indicator_series(series, "AAPL", "sma_3")
+            db_util.bulk_insert_indicators_jsonb(test_df)
 
             assert mock_ev.called
             mock_conn.commit.assert_called_once()
 
-    def test_insert_indicator_series_type_error(self, mock_conn):
+    def test_bulk_insert_indicators_jsonb_type_error(self, mock_conn):
         db_util = DatabaseFacade(mock_conn)
-        bad_input = [0.1, 0.2, 0.3]  # Not a Series
+        bad_input = [{'ticker': 'AAPL', 'indicator': 'sma_20'}]  # Not a DataFrame
 
-        with pytest.raises(TypeError, match="Expected a pandas Series"):
-            db_util.insert_indicator_series(bad_input, "AAPL", "sma_3")
+        with pytest.raises(TypeError, match="Expected a pandas DataFrame"):
+            db_util.bulk_insert_indicators_jsonb(bad_input)
 
-    def test_insert_indicator_series_empty_data(self, mock_conn):
+    def test_bulk_insert_indicators_jsonb_missing_columns(self, mock_conn):
+        db_util = DatabaseFacade(mock_conn)
+        
+        # DataFrame missing required columns
+        bad_df = pd.DataFrame({
+            'ticker': ['AAPL'],
+            'indicator': ['sma_20']
+            # Missing 'date_values' column
+        })
+
+        with pytest.raises(ValueError, match="DataFrame must contain columns"):
+            db_util.bulk_insert_indicators_jsonb(bad_df)
+
+    def test_bulk_insert_indicators_jsonb_empty_data(self, mock_conn):
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
-        # Series with only NaN values → insert logic should skip
-        empty_series = pd.Series(
-            [float("nan"), float("nan")],
-            index=pd.to_datetime(["2023-01-01", "2023-01-02"]),
-            name="sma_3"
-        )
+        # Empty DataFrame
+        empty_df = pd.DataFrame(columns=['ticker', 'indicator', 'date_values'])
 
         db_util = DatabaseFacade(mock_conn)
 
         with patch("stockie.db.database_facade.execute_values") as mock_ev:
-            db_util.insert_indicator_series(empty_series, "AAPL", "sma_3")
+            db_util.bulk_insert_indicators_jsonb(empty_df)
 
             mock_ev.assert_not_called()
             mock_conn.commit.assert_not_called()
 
-    def test_copy_from_file_success(self, mock_conn):
+    def test_bulk_insert_indicators_jsonb_database_error(self, mock_conn):
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    
-        db_util = DatabaseFacade(mock_conn)
-        file_path = "/tmp/test.csv"
-    
-        # Mock the file operations
-        mock_file_content = "ticker,indicator,date,value\nAAPL,RSI,2023-01-01,65.5\n"
-    
-        with patch("builtins.open", mock_open(read_data=mock_file_content)) as mock_file:
-            db_util.copy_from_file(file_path)
-        
-            # Verify file was opened
-            mock_file.assert_called_once_with(file_path, 'r')
-        
-            # Verify copy_expert was called correctly (changed from copy_from)
-            mock_cursor.copy_expert.assert_called_once()
-        
-            # Check the SQL command and file object
-            call_args = mock_cursor.copy_expert.call_args
-            sql_command = call_args[0][0]
-            file_obj = call_args[0][1]
-        
-            # Verify the SQL contains the expected COPY command
-            assert "COPY technical_indicators" in sql_command
-            assert "FORMAT csv" in sql_command
-            assert "HEADER true" in sql_command
-        
-            # Verify commit was called
-            mock_conn.commit.assert_called_once()
 
-    def test_copy_from_file_error(self, mock_conn):
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        mock_cursor.copy_expert.side_effect = Exception("Database error")  # Changed from copy_from
-    
+        # Create test DataFrame
+        test_df = pd.DataFrame({
+            'ticker': ['AAPL'],
+            'indicator': ['sma_20'],
+            'date_values': [{'2023-01-01': 150.0}]
+        })
+
         db_util = DatabaseFacade(mock_conn)
-        file_path = "/tmp/test.csv"
-    
-        mock_file_content = "ticker,indicator,date,value\nAAPL,RSI,2023-01-01,65.5\n"
-    
-        with patch("builtins.open", mock_open(read_data=mock_file_content)):
-            with pytest.raises(RuntimeError, match="Failed to load /tmp/test.csv"):
-                db_util.copy_from_file(file_path)
+
+        # Mock execute_values to raise an exception
+        with patch("stockie.db.database_facade.execute_values") as mock_ev:
+            mock_ev.side_effect = Exception("Database error")
+            
+            with pytest.raises(RuntimeError, match="Failed to bulk insert indicators: Database error"):
+                db_util.bulk_insert_indicators_jsonb(test_df)
             
             # Verify rollback was called
-            mock_conn.rollback.assert_called_once()
-
-    def test_copy_from_file_raises_runtime_error(self, mock_conn):
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        mock_cursor.copy_expert.side_effect = Exception("fail")  # Changed from execute to copy_expert
-
-        db_util = DatabaseFacade(mock_conn)
-        file_path = "/tmp/test.csv"
-        
-        mock_file_content = "ticker,indicator,date,value\nAAPL,RSI,2023-01-01,65.5\n"
-        
-        with patch("builtins.open", mock_open(read_data=mock_file_content)):
-            with pytest.raises(RuntimeError, match="Failed to load /tmp/test.csv: fail"):
-                db_util.copy_from_file(file_path)
             mock_conn.rollback.assert_called_once()
 
 if __name__ == "__main__":

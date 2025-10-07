@@ -11,28 +11,23 @@ load_stock_prices:
 
 calculate_indicators: 
   profile: false
-  calculate_processes: 4
-  csv_directory: /mnt/staging/stockie/dev/indicators/
-  concatenate_dataframes: false
-  save_every_n_tickers: 100
+  calculate_processes: 8
+  db_batch_size: 100
   log_filename: /mnt/log/stockie/dev/calculate_indicators.log
-  log_level: INFO
-  console: false
-
-load_indicators:
-  load_processes: 4
-  csv_directory: /mnt/staging/stockie/dev/indicators
-  log_filename: /mnt/log/stockie/dev/load_indicators.log
   log_level: INFO
   console: false
 
 daily_job:
   load_stock_prices: true
   calculate_indicators: true
-  load_indicators: true
   log_filename: /mnt/log/stockie/dev/daily_job.log
   log_level: INFO
   console: true
+
+vacuum:
+  log_dir: /mnt/log/stockie/dev
+  console: true
+  file: true
 
 db:
   host: localhost

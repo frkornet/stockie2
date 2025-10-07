@@ -154,79 +154,6 @@ class TestCalculateIndicators:
         runner = CalculateIndicators(mock_db_util, config)
         runner.run(["AAPL"])
 
-    def test_save_dfs_to_csv_non_concatenate(self, tmp_path, sample_df, mock_config):
-        # Setup CalculateIndicators with concatenate_dataframes=False
-        config = mock_config.copy()
-        config["calculate_indicators"]["concatenate_dataframes"] = False
-        config["calculate_indicators"]["csv_directory"] = str(tmp_path) + "/"
-        config["calculate_indicators"]["log_filename"] = str(tmp_path / "test.log")
-
-        mock_db_util = MagicMock()
-        from stockie.indicators.calculate_indicators import CalculateIndicators
-        runner = CalculateIndicators(mock_db_util, config)
-        runner.csv_file_name = str(tmp_path / "indicators_part_0.csv")
-        runner.csv_header = True
-
-        # Prepare ticker_df_cache with two non-empty DataFrames
-        runner.ticker_df_cache = {
-            "AAPL": sample_df.assign(ticker="AAPL", indicator="rsi", value=1.0).reset_index(),
-            "GOOG": sample_df.assign(ticker="GOOG", indicator="rsi", value=2.0).reset_index()
-        }
-
-        # Patch to_csv to monitor calls
-        with patch.object(pd.DataFrame, "to_csv", autospec=True) as mock_to_csv:
-            runner._save_dfs_to_csv("AAPL", 0)
-            # Should call to_csv twice (once for each ticker)
-            assert mock_to_csv.call_count == 2
-            # Should use the correct file name and header True for first call, False for second
-            first_call = mock_to_csv.call_args_list[0]
-            second_call = mock_to_csv.call_args_list[1]
-            assert first_call.kwargs["header"] is True
-            assert second_call.kwargs["header"] is False
-            assert first_call.kwargs["mode"] == "a"
-            assert second_call.kwargs["mode"] == "a"
-            assert first_call.kwargs["encoding"] == "utf-8"
-            assert second_call.kwargs["encoding"] == "utf-8"
-
-    def test_save_dfs_to_csv_else_block(self, tmp_path, sample_df, mock_config):
-        # Setup config to use non-concatenate mode
-        config = mock_config.copy()
-        config["calculate_indicators"]["concatenate_dataframes"] = False
-        config["calculate_indicators"]["csv_directory"] = str(tmp_path) + "/"
-        config["calculate_indicators"]["log_filename"] = str(tmp_path / "test.log")
-
-        mock_db_util = MagicMock()
-        from stockie.indicators.calculate_indicators import CalculateIndicators
-        runner = CalculateIndicators(mock_db_util, config)
-        runner.csv_file_name = str(tmp_path / "indicators_part_0.csv")
-        runner.csv_header = True
-
-        # Create two non-empty DataFrames and one empty DataFrame in the cache
-        df1 = sample_df.assign(ticker="AAPL", indicator="rsi", value=1.0).reset_index()
-        df2 = sample_df.assign(ticker="GOOG", indicator="rsi", value=2.0).reset_index()
-        df_empty = pd.DataFrame(columns=df1.columns)
-        runner.ticker_df_cache = {
-            "AAPL": df1,
-            "GOOG": df2,
-            "EMPTY": df_empty
-        }
-
-        # Patch to_csv to monitor calls
-        with patch.object(pd.DataFrame, "to_csv", autospec=True) as mock_to_csv:
-            runner._save_dfs_to_csv("AAPL", 0)
-            # Should call to_csv only for non-empty DataFrames
-            assert mock_to_csv.call_count == 2
-            # Check that header is True for first call, False for second
-            first_call = mock_to_csv.call_args_list[0]
-            second_call = mock_to_csv.call_args_list[1]
-            assert first_call.kwargs["header"] is True
-            assert second_call.kwargs["header"] is False
-            # Check file name and mode
-            assert first_call.kwargs["mode"] == "a"
-            assert second_call.kwargs["mode"] == "a"
-            assert first_call.kwargs["encoding"] == "utf-8"
-            assert second_call.kwargs["encoding"] == "utf-8"
-
     def test_calculate_indicators_single_process(self, mock_config):
         mock_db_facade = MagicMock()
         mock_db_facade.get_unique_tickers.return_value = ["AAPL", "GOOG"]
@@ -299,3 +226,49 @@ class TestCalculateIndicators:
             worker(tickers_chunk, config, part)
             mock_runner.run.assert_called_once_with(tickers_chunk, part)
             mock_conn.close.assert_called_once()
+
+    def test_vacuum_full_success_integration(self, sample_df, mock_config):
+        """Test that VACUUM FULL is executed successfully after indicator calculation"""
+        from stockie.indicators.calculate_indicators import CalculateIndicators
+        
+        # Mock database facade with vacuum method
+        mock_db_util = MagicMock()
+        mock_db_util.fetch_price_data.return_value = sample_df
+        mock_db_util.vacuum_full_table.return_value = {
+            'success': True,
+            'duration_minutes': 2.5,
+            'error_message': None
+        }
+        
+        # Create indicator runner
+        runner = CalculateIndicators(mock_db_util, mock_config)
+        
+        # Mock indicator calculations to avoid complex setup
+        with patch.object(runner, '_save_batch_indicators'):
+            runner.run(['AAPL'])
+        
+        # Verify VACUUM FULL was called
+        mock_db_util.vacuum_full_table.assert_called_once_with('technical_indicators')
+
+    def test_vacuum_full_failure_integration(self, sample_df, mock_config):
+        """Test that VACUUM FULL failure is handled gracefully"""
+        from stockie.indicators.calculate_indicators import CalculateIndicators
+        
+        # Mock database facade with failing vacuum method
+        mock_db_util = MagicMock()
+        mock_db_util.fetch_price_data.return_value = sample_df
+        mock_db_util.vacuum_full_table.return_value = {
+            'success': False,
+            'duration_minutes': 0,
+            'error_message': 'VACUUM failed: disk full'
+        }
+        
+        # Create indicator runner
+        runner = CalculateIndicators(mock_db_util, mock_config)
+        
+        # Mock indicator calculations to avoid complex setup
+        with patch.object(runner, '_save_batch_indicators'):
+            runner.run(['AAPL'])
+        
+        # Verify VACUUM FULL was called even though it failed
+        mock_db_util.vacuum_full_table.assert_called_once_with('technical_indicators')

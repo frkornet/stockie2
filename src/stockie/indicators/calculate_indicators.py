@@ -1,9 +1,10 @@
 import argparse
 import pandas as pd
+import numpy as np
 import psycopg2
 
 import os
-import csv
+import json
 import multiprocessing
 
 from importlib import import_module
@@ -44,31 +45,27 @@ class CalculateIndicators:
             log_filename=os.path.basename(log_config['log_filename'])
         ).get_logger()
 
-        self.ticker_indicators_df = pd.DataFrame(columns=["ticker", "indicator", "date", "value"])
-        self.csv_header = True
-        self.ticker_df_cache = {}
-        self.ticker_counter = 0
+        # DataFrame matching database table structure: ticker, indicator, date_values (JSONB)
+        self.ticker_indicators_df = pd.DataFrame(columns=["ticker", "indicator", "date_values"])
         
-        calc_indicators_config = config.get("calculate_indicators", {})
-        self.csv_directory = calc_indicators_config.get("csv_directory", "/tmp/")
-        self.save_every_n_tickers = calc_indicators_config.get("save_every_n_tickers", 10)
-        self.concatenate_dataframes = calc_indicators_config.get("concatenate_dataframes", True)
+        # Batch configuration for database writes
+        self.db_batch_size = config.get('calculate_indicators', {}).get('db_batch_size', 100)
+        self.processed_tickers = 0
         
 
     def run(self, tickers: list[str], part: int =0) -> None:
         """
         Runs the indicator calculations for the provided tickers.
         This method will fetch price data for each ticker, calculate indicators based on the configuration,
-        and save the results to a CSV file.
+        and save the results directly to the database.
         :param tickers: List of ticker symbols to calculate indicators for.
-        :param part: Part number for the CSV file, used for chunking large datasets.
+        :param part: Part number for multiprocessing identification and logging.
         :raises ValueError: If there are mismatched list lengths in the configuration for indicators.
         :raises ModuleNotFoundError: If the indicator module cannot be found.
         :raises AttributeError: If the indicator class or method cannot be found.
         """
         self.logger.info(f'\n\n *** Starting calculate technical indicators run.')
         benchmark_data = self._resolve_dependencies(self.indicator_config)
-        self._remove_csv_file(part)
 
         for ticker in tickers:
             df = self.db_util.fetch_price_data(ticker)
@@ -114,58 +111,55 @@ class CalculateIndicators:
                         resolved = self._inject_benchmark_series(raw_params, benchmark_data)
                         self._process(func, ticker, resolved)
 
-            self._save_ticker_indicators(ticker, part, force=False)
+            # Increment processed ticker count
+            self.processed_tickers += 1
+            
+            # Save indicators in batches for better performance
+            if self.processed_tickers % self.db_batch_size == 0:
+                try:
+                    self._save_batch_indicators()
+                except Exception as e:
+                    self.logger.error(f"Failed to save batch at ticker {self.processed_tickers}: {e}")
+                    # Clear the DataFrame to avoid carrying over incomplete data
+                    self.ticker_indicators_df = self.ticker_indicators_df.iloc[0:0]
+        
+        # Save any remaining indicators at the end
+        if not self.ticker_indicators_df.empty:
+            try:
+                self._save_batch_indicators()
+            except Exception as e:
+                self.logger.error(f"Failed to save final batch: {e}")
 
-        if tickers:
-            self._save_ticker_indicators(ticker, part, force=True)    
+        # Temporary measure: VACUUM FULL to reclaim TOAST bloat from JSONB updates
+        # TODO: Replace with dual table swap approach for production
+        self.logger.info("Running VACUUM FULL on technical_indicators to reclaim TOAST space...")
+        vacuum_result = self.db_util.vacuum_full_table('technical_indicators')
+        
+        if vacuum_result['success']:
+            self.logger.info(f"VACUUM FULL completed in {vacuum_result['duration_minutes']} minutes")
+        else:
+            self.logger.error(f"VACUUM FULL failed: {vacuum_result['error_message']}")
+
         self.logger.info(f'*** Finished calculate technical indicator run.')
         
-    def _remove_csv_file(self, part):
+    def _save_batch_indicators(self) -> None:
         """
-        Removes the CSV file if it exists.
+        Save all indicators in the DataFrame to database in batches for better performance.
         """
-        self.csv_file_name = f"{self.csv_directory}indicators_part_{part}.csv"
-        csv_file = Path(self.csv_file_name)
-        if csv_file.exists():
-            csv_file.unlink()
+        if self.ticker_indicators_df.empty:
+            return  # Nothing to save
         
-    def _save_ticker_indicators(self, ticker: str, part: int, force=False):
-        """
-        Saves the current ticker's indicators DataFrame to the cache and optionally to CSV.
-        If `force` is True, it will save immediately regardless of the ticker count."""
-        self.ticker_df_cache[ticker] = self.ticker_indicators_df
+        unique_tickers = self.ticker_indicators_df['ticker'].unique()
+        num_tickers = len(unique_tickers)
+        num_indicators = len(self.ticker_indicators_df)
+        
+        self.logger.info(f"Saving batch: {num_indicators} indicators for {num_tickers} tickers to database...")
+        
+        # Use bulk JSONB insert for the entire batch
+        self.db_util.bulk_insert_indicators_jsonb(self.ticker_indicators_df)
+        
+        # Clear the DataFrame after successful save
         self.ticker_indicators_df = self.ticker_indicators_df.iloc[0:0]
-
-        if (self.ticker_counter + 1) % self.save_every_n_tickers == 0 or force:
-            self._save_dfs_to_csv(ticker, part)
-        else:
-            self.ticker_counter += 1
-
-    def _save_dfs_to_csv(self, ticker: str, part: int):
-        """ 
-        Saves the cached DataFrames to a CSV file. 
-        If `concatenate_dataframes` is True, it concatenates all DataFrames before saving to CSV.
-        """
-        self.logger.info(f"Saving indicators for {self.ticker_counter + 1} tickers to {self.csv_file_name}...")
-
-        if self.concatenate_dataframes:
-            dfs = pd.concat(self.ticker_df_cache.values(), ignore_index=True)
-            dfs.to_csv(
-                self.csv_file_name, encoding='utf-8',
-                index=False, mode='a', quoting=csv.QUOTE_ALL, header=self.csv_header
-            )
-            self.csv_header = False
-        else:
-            for t_df in self.ticker_df_cache.values():
-                if not t_df.empty:
-                    t_df.to_csv(
-                        self.csv_file_name, encoding='utf-8',
-                        index=False, mode='a', quoting=csv.QUOTE_ALL, header=self.csv_header
-                    )
-                    self.csv_header = False
-        
-        self.ticker_df_cache.clear()
-        self.ticker_counter = 0
 
     def _process(self, func, ticker: str, params: dict):
         """
@@ -181,16 +175,33 @@ class CalculateIndicators:
             for name, series in result.items():
                 self._add_series_to_ticker_indicators(ticker, name, result[name])
 
-    def _add_series_to_ticker_indicators(self, ticker: str, name: str, series: pd.Series, ):
-        df = pd.DataFrame({
-                "ticker": ticker,
-                "indicator": name,
-                "date": series.index,
-                "value": series.values
-            },
-        ).dropna(subset=["value"])
-        df_list = ([ self.ticker_indicators_df] if not self.ticker_indicators_df.empty else []) + [df]
-        self.ticker_indicators_df = pd.concat(df_list,ignore_index=True,)
+    def _add_series_to_ticker_indicators(self, ticker: str, name: str, series: pd.Series) -> None:
+        """
+        Add a pandas Series as a JSON time series for a ticker-indicator combination.
+        """
+        # Convert pandas Series to JSON dict, handling NaN and infinite values
+        clean_series = series.dropna()
+        if clean_series.empty:
+            return  # Skip empty series
+        
+        # Filter out infinite values (not valid JSON) and convert to float
+        date_values_json = {}
+        for date, value in clean_series.items():
+            if np.isfinite(value):  # Only include finite values (excludes NaN, +Inf, -Inf)
+                date_values_json[date.strftime('%Y-%m-%d')] = float(value)
+        
+        # Skip if no valid values remain after filtering
+        if not date_values_json:
+            return
+        
+        # Add single row to DataFrame matching database structure
+        new_row = pd.DataFrame({
+            "ticker": [ticker],
+            "indicator": [name], 
+            "date_values": [date_values_json]
+        })
+        
+        self.ticker_indicators_df = pd.concat([self.ticker_indicators_df, new_row], ignore_index=True)
 
     def _resolve_dependencies(self, config: dict) -> dict[str, pd.DataFrame]:
         """

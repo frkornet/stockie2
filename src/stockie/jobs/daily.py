@@ -5,7 +5,6 @@ import sys
 import psycopg2
 from datetime import datetime
 from stockie.loaders.load_stock_prices import load_stock_prices
-from stockie.loaders.load_indicators import load_technical_indicators
 from stockie.indicators.calculate_indicators import calculate_indicators
 from stockie.loaders.config_loader import ConfigLoader
 from stockie.log.custom_logger import CustomLogger
@@ -59,13 +58,6 @@ def run_daily_job(config_dir: str) -> None:
             calculate_indicators(db_facade, full_config)
             duration = (time.time() - start_calculate)/60
             logger.info(f'Calculate technical indicators finished after {duration} minutes')
-
-        if daily_config['load_indicators']:
-            start_load = time.time()
-            logger.info(f'Running load technical indicators at {datetime.fromtimestamp(start_load)}')
-            load_technical_indicators(db_facade, full_config)
-            duration = (time.time() - start_load)/60
-            logger.info(f'Load technical indicators finished after {duration} minutes')
 
         duration = (time.time() - start_job) / 60
         logger.info(f'*** Finished daily job successfully in {duration} minutes')

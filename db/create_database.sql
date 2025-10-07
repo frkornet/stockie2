@@ -66,14 +66,13 @@ create table stock_price_audit (
 drop table technical_indicators;
 
 create table technical_indicators (
-    ticker TEXT,
-    indicator TEXT,
-    date DATE,
-    value DOUBLE PRECISION
+    ticker TEXT NOT NULL,
+    indicator TEXT NOT NULL,
+    date_values JSONB NOT NULL
 ) tablespace stockie_data_ts;
 
 create unique index technical_indicators_pk_idx
-    ON technical_indicators (ticker, indicator, date)
+    ON technical_indicators (ticker, indicator)
     tablespace stockie_index_ts;
 
 alter table technical_indicators
@@ -118,14 +117,13 @@ create table stock_price_audit (
 drop table technical_indicators;
 
 create table technical_indicators (
-    ticker TEXT,
-    indicator TEXT,
-    date DATE,
-    value DOUBLE PRECISION
+    ticker TEXT NOT NULL,
+    indicator TEXT NOT NULL,
+    date_values JSONB NOT NULL
 ) tablespace stockie_dev_data_ts;
 
 create unique index technical_indicators_pk_idx
-    ON technical_indicators (ticker, indicator, date)
+    ON technical_indicators (ticker, indicator)
     tablespace stockie_dev_index_ts;
 
 alter table technical_indicators

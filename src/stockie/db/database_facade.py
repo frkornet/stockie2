@@ -1,5 +1,5 @@
 from psycopg2 import sql
-from psycopg2.extras import execute_values
+from psycopg2.extras import execute_values, Json
 from collections.abc import Iterable
 import pandas as pd
 from datetime import date
@@ -80,6 +80,44 @@ class DatabaseFacade:
             raise e
         finally:
             self.conn.autocommit = original_autocommit
+
+    def vacuum_full_table(self, table_name: str) -> dict:
+        """
+        Perform VACUUM FULL on specified table to reclaim space from dead tuples.
+        
+        Parameters:
+            table_name (str): Name of the table to vacuum
+            
+        Returns:
+            dict: Results containing success status, duration, and any error message
+        """
+        import time
+        
+        result = {
+            'success': False,
+            'duration_seconds': 0,
+            'duration_minutes': 0,
+            'error_message': None,
+            'table_name': table_name
+        }
+        
+        try:
+            start_time = time.time()
+            
+            with self.conn.cursor() as cursor:
+                cursor.execute(sql.SQL("VACUUM FULL {}").format(sql.Identifier(table_name)))
+                self.conn.commit()
+            
+            duration_seconds = time.time() - start_time
+            result['duration_seconds'] = round(duration_seconds, 1)
+            result['duration_minutes'] = round(duration_seconds / 60, 1)
+            result['success'] = True
+            
+        except Exception as e:
+            self.conn.rollback()
+            result['error_message'] = str(e)
+            
+        return result
 
     #############################################################
     ### Methods for interacting with stock_price_audit table  ###
@@ -169,56 +207,44 @@ class DatabaseFacade:
     ### Methods for interacting with technical_indicators table ###
     ###############################################################
 
-    def insert_indicator_series(self, series: pd.Series, ticker: str, indicator: str) -> None:
+    def bulk_insert_indicators_jsonb(self, df: pd.DataFrame) -> None:
         """
-        Inserts a time series into the technical_indicators table.
-
+        Bulk inserts indicators from a DataFrame with JSONB date_values into the technical_indicators table.
+        
         Parameters:
-            series (pd.Series): Indexed by date, containing indicator values.
-            ticker (str): The stock symbol, e.g. 'AAPL'.
-            indicator (str): The indicator name, e.g. 'sma_20'.
+            df (pd.DataFrame): DataFrame with columns ['ticker', 'indicator', 'date_values']
+                             where date_values is a dict of date strings to float values
         """
-        if not isinstance(series, pd.Series):
-            raise TypeError("Expected a pandas Series with datetime index and float values.")
-
-        data = [
-            (ticker, date.date(), indicator, float(value))
-            for date, value in series.dropna().items()
-        ]
-
-        if not data:
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError("Expected a pandas DataFrame with columns: ticker, indicator, date_values")
+        
+        required_columns = {'ticker', 'indicator', 'date_values'}
+        if not required_columns.issubset(df.columns):
+            raise ValueError(f"DataFrame must contain columns: {required_columns}")
+        
+        if df.empty:
             return  # nothing to insert
-
+        
+        # Convert DataFrame to list of tuples for bulk insert
+        data = [
+            (row['ticker'], row['indicator'], Json(row['date_values']))
+            for _, row in df.iterrows()
+        ]
+        
         query = """
-            INSERT INTO technical_indicators (ticker, date, indicator, value)
+            INSERT INTO technical_indicators (ticker, indicator, date_values)
             VALUES %s
-            ON CONFLICT (ticker, date, indicator) DO UPDATE
-            SET value = EXCLUDED.value;
+            ON CONFLICT (ticker, indicator) DO UPDATE
+            SET date_values = EXCLUDED.date_values;
         """
 
-        with self.conn.cursor() as cur:
-            execute_values(cur, query, data)
-            self.conn.commit()
-    
-    def copy_from_file(self, file_path: str) -> None:
-        """
-        Loads a CSV file into the technical_indicators table using PostgreSQL COPY.
-        """
         try:
             with self.conn.cursor() as cur:
-                with open(file_path, 'r') as f:
-                    cur.copy_expert(
-                        """
-                        COPY technical_indicators(ticker, indicator, date, value)
-                        FROM STDIN WITH (
-                            FORMAT csv,
-                            HEADER true,
-                            QUOTE '"'
-                        )
-                        """,
-                        f
-                    )
-            self.conn.commit()
+                execute_values(cur, query, data)
+                self.conn.commit()
         except Exception as e:
             self.conn.rollback()
-            raise RuntimeError(f"Failed to load {file_path}: {e}")
+            raise RuntimeError(f"Failed to bulk insert indicators: {e}")
+
+
+
