@@ -1,7 +1,7 @@
 # Stockie Financial Analysis Platform
 ## Architecture, Roadmap & Development Plan
 
-> **📚 Project Documentation Suite**: This technical roadmap is part of an integrated documentation set including [📄 README.md](README.md) for project overview and [👤 AUTHORS.md](AUTHORS.md) for team information. Documentation is updated monthly/quarterly to track development progress.
+> **📚 Project Documentation Suite**: This technical roadmap is part of an integrated documentation set including [📄 README.md](README.md) for project overview, [👤 AUTHORS.md](AUTHORS.md) for team information, and [🤝 CONTRIBUTING.md](CONTRIBUTING.md) for development standards. Documentation is updated monthly/quarterly to track development progress.
 
 ### 📊 **Project Overview**
 
@@ -34,7 +34,7 @@ Stockie is an open-source comprehensive personal financial management suite deve
 - **Company Intelligence**: KPI extraction and trend analysis from SEC filings
 - **News & Sentiment Analysis**: Automated news scraping and AI-powered sentiment analysis for tickers and market trends
 - **Cryptocurrency Support**: Full crypto price data integration via Yahoo Finance (BTC, ETH, major altcoins)
-- **Trading Algorithm Infrastructure**: Framework for users to develop and backtest custom trading strategies (educational/research purposes, not trading advice)
+- **Trading Algorithm Infrastructure**: Framework for users to develop and backtest custom trading strategies with quadratic programming portfolio optimization (educational/research purposes, not trading advice)
 - **Flexible Architecture**: Scalable from single desktop to distributed deployment
 - **AI Integration**: Pluggable LLM providers for document analysis and natural language queries
 
@@ -199,15 +199,27 @@ UI ←→ (gRPC/HTTP) ←→ Services ←→ Database
 └─────────────────────┘    └──────────────────────┘    └─────────────────┘
 
 ┌─────────────────────┐    ┌──────────────────────┐
-│ LLM Processing      │    │ Alert System         │
-│ (On-demand)         │    │ (Real-time)          │
+│ LLM Processing      │    │ Portfolio Scheduler  │
+│ (On-demand)         │    │ (Scheduled)          │
 │                     │    │                      │
-│ • Decompress        │    │ • Price alerts       │
-│   filings           │    │ • News alerts        │
-│ • AI analysis       │    │ • Sentiment alerts   │
-│ • Generate          │    │ • Market volatility  │
-│   summaries         │    │   warnings           │
+│ • Decompress        │    │ • Rebalancing checks │
+│   filings           │    │   (Monthly/Quarterly)│
+│ • AI analysis       │    │ • Drift analysis     │
+│ • Generate          │    │ • Allocation alerts  │
+│   summaries         │    │ • Optimization runs  │
 └─────────────────────┘    └──────────────────────┘
+
+┌─────────────────────┐
+│ Alert System        │
+│ (Real-time)         │
+│                     │
+│ • Price alerts      │
+│ • News alerts       │
+│ • Sentiment alerts  │
+│ • Rebalance alerts  │
+│ • Market volatility │
+│   warnings          │
+└─────────────────────┘
 ```
 
 ---
@@ -375,6 +387,46 @@ UI ←→ (gRPC/HTTP) ←→ Services ←→ Database
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### **Portfolio Optimization Tab (Educational/Research)**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                Portfolio Optimization & Allocation             │
+├─────────────────────────────────────────────────────────────────┤
+│ Allocation Templates:                    Current Portfolio:     │
+│ ┌─────────────────────────────┐         ┌─────────────────────┐ │
+│ │ ● Conservative (40/30/30)   │         │ Total: $125,000     │ │
+│ │   • 40% Domestic Stocks     │         │ Domestic:  $45,000  │ │
+│ │   • 30% International       │         │ Intl:      $35,000  │ │
+│ │   • 30% Bonds              │         │ Bonds:     $45,000  │ │
+│ │                             │         │                     │ │
+│ │ ○ Moderate (60/25/15)       │         │ [🔄 Optimize]       │ │
+│ │ ○ Aggressive (80/15/5)      │         │ [📊 Efficient       │ │
+│ │ ○ Custom Template           │         │     Frontier]       │ │
+│ │ [+ Create Template]         │         └─────────────────────┘ │
+│ └─────────────────────────────┘                               │ │
+│                                                                 │ │
+│ Rebalancing Schedule:                    Current Status:        │ │
+│ ┌─────────────────────────────────────┐ ┌─────────────────────┐ │
+│ │ ● Quarterly (Jan/Apr/Jul/Oct)       │ │ Last: Oct 1, 2025   │ │
+│ │ ○ Monthly (1st of month)            │ │ Next: Jan 1, 2026   │ │
+│ │ ○ Semi-Annual (Jan/Jul)             │ │ Drift: 2.3% above  │ │
+│ │ ○ Annual (January)                  │ │ threshold (5%)      │ │
+│ │ ○ Threshold-based (±5% drift)      │ │                     │ │
+│ │ ○ Manual only                       │ │ [⚙️ Schedule Setup] │ │
+│ └─────────────────────────────────────┘ └─────────────────────┘ │
+│                                                                 │ │
+│ Quadratic Programming Results:           Rebalancing Needed:    │ │
+│ ┌─────────────────────────────────────┐ ┌─────────────────────┐ │
+│ │ Expected Return:    8.4%            │ │ Sell: $5,000 Dom.   │ │
+│ │ Expected Risk:      12.1%           │ │ Buy:  $3,000 Intl.  │ │
+│ │ Sharpe Ratio:       0.69            │ │ Buy:  $2,000 Bonds  │ │
+│ │ [📊 Risk/Return Chart]              │ │                     │ │
+│ └─────────────────────────────────────┘ │ ⚠️ EDUCATIONAL USE   │ │
+│                                          │   NOT ADVICE        │ │
+│ Correlation Matrix: [📊 Heat Map]       └─────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ---
 
 ## 📊 **Data Storage Strategy**
@@ -441,6 +493,22 @@ SEC Filing → Decompress → Clean/Parse → LLM Analysis → Extract/Store Sum
  Database     Content     Content      (JSON)         Database
 ```
 
+### **Future AI Integration Considerations**
+
+**Model Context Protocol (MCP) Integration:**
+- **Exploration Phase**: Investigating MCP for enhanced AI tool connectivity and standardized financial data access patterns
+- **Potential Applications**: 
+  - Standardized interfaces for financial data tools and AI models
+  - Enhanced context sharing between different AI analysis components
+  - Improved integration with external financial analysis tools
+- **Implementation Timeline**: Evaluation during Phase 4-5 development
+- **Benefits**: Could provide more robust, standardized AI integration architecture
+
+**AI Agent Framework Integration:**
+- **Automated Analysis Workflows**: Multi-step financial analysis processes
+- **Cross-Domain Analysis**: Combining SEC filings, news sentiment, and technical indicators
+- **Personalized Insights**: AI agents tailored to individual investment strategies
+
 ---
 
 ## 📅 **Development Phases & Timeline**
@@ -472,6 +540,11 @@ SEC Filing → Decompress → Clean/Parse → LLM Analysis → Extract/Store Sum
   - Filing decompression and cleaning
   - News article sentiment analysis
   - Summary generation and caching
+- 🔲 Portfolio optimization foundation:
+  - Quadratic programming library integration (SciPy/CVXPY)
+  - Standard allocation templates (Conservative/Moderate/Aggressive)
+  - Asset class categorization framework (Domestic/International/Bonds)
+  - Rebalancing scheduler framework (periodic and threshold-based triggers)
 - 🔲 Storage testing:
   - Monitor disk usage patterns
   - Optimize compression ratios
@@ -550,14 +623,17 @@ SEC Filing → Decompress → Clean/Parse → LLM Analysis → Extract/Store Sum
   - Management discussion highlights
 - 🔲 Advanced portfolio features:
   - Portfolio creation and management
+  - **Standard allocation templates**: Domestic/International/Bond portfolio splits
   - Performance tracking and analysis
-  - Rebalancing recommendations
-  - Risk assessment tools
+  - **Periodic rebalancing scheduler**: Monthly, quarterly, semi-annual, annual options
+  - Rebalancing recommendations with asset class constraints and drift thresholds
+  - Risk assessment tools and correlation analysis
 - 🔲 Trading algorithm infrastructure:
   - Plugin framework for custom trading strategies
   - Backtesting engine with historical data
   - Strategy performance metrics and visualization
   - Sample algorithms (SMA crossover, RSI mean reversion, etc.)
+  - **Quadratic programming optimization**: Portfolio optimization using modern portfolio theory
   - Risk management and position sizing tools
   - **Disclaimer integration**: Clear educational purpose, not trading advice
 - 🔲 User experience polish:
@@ -698,6 +774,7 @@ The order and priority of future modules will be determined through:
 ### **Data Pipeline**
 - **Python 3.11+** - ETL processes and data management
 - **Pandas/NumPy** - Data processing and analysis
+- **SciPy/CVXPY** - Quadratic programming and portfolio optimization
 - **Requests/BeautifulSoup** - Web scraping and API integration
 
 ### **AI/ML Integration**
@@ -710,6 +787,12 @@ The order and priority of future modules will be determined through:
 - **PostgreSQL 15+** - Primary data storage
 - **Compression** - gzip for SEC filing storage
 - **Indexing** - Optimized for time-series and text queries
+
+### **Development Platform**
+- **Linux (Ubuntu)** - Primary development and testing environment
+- **Windows (WSL)** - Future validation and testing target
+- **macOS** - Future support validation target
+- **Cross-platform Qt** - Ensures consistent UI across platforms
 
 ### **Development Tools**
 - **CMake** - C++ build system
@@ -724,6 +807,7 @@ The order and priority of future modules will be determined through:
 ### **Prerequisites**
 - **Development**: Python 3.11+, Qt 6, PostgreSQL 15+, CMake 3.20+
 - **System**: 16GB+ RAM, 100GB+ disk space, multi-core CPU
+- **Platform**: Linux (Ubuntu) for development; Windows (WSL) and macOS validation planned
 - **APIs**: SEC EDGAR access, AI provider API keys (optional)
 
 ### **Installation**

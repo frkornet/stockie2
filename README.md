@@ -1,6 +1,13 @@
 # Stockie Financial Analysis Platform
 
-An open-source comprehensive personal financial management suite providing professional-grade stock analysis, SEC filing intelligence, and investment portfolio management capabilities. Developed by the Stockie Foundation.
+An open-source comprehensive personal financial management suite providing professional-grade stock analysis, SEC filing intelligence, and investment por## 📋 **Project Documentation**
+
+This project maintains comprehensive documentation across four integrated files:
+
+- **[📖 ARCHITECTURE_ROADMAP.md](ARCHITECTURE_ROADMAP.md)** - Detailed technical architecture, UI mockups, development phases, and iterative development strategy
+- **[👤 AUTHORS.md](AUTHORS.md)** - Project leadership, contributor profiles, and team information
+- **[🤝 CONTRIBUTING.md](CONTRIBUTING.md)** - Development standards, testing requirements, and contribution guidelines
+- **[📄 README.md](README.md)** - Project overview, quick start guide, and current status (this file)management capabilities. Developed by the Stockie Foundation.
 
 **Vision**: Building a complete personal financial management ecosystem. Portfolio and investment management is our initial focus, with plans to expand into budgeting, expense tracking, tax optimization, retirement planning, and comprehensive financial wellness tools over the coming years.
 
@@ -36,7 +43,7 @@ python src/stockie/jobs/daily.py --config-dir config
 - **🏢 Company Intelligence**: KPI extraction and trend analysis from SEC filings
 - **📰 News & Sentiment Analysis**: Automated news scraping and AI-powered sentiment analysis for tickers and market trends
 - **₿ Cryptocurrency Support**: Full crypto price data integration via Yahoo Finance (BTC, ETH, major altcoins)
-- **🔬 Trading Algorithm Infrastructure**: Framework for users to develop and backtest custom trading strategies (educational/research purposes, not trading advice)
+- **🔬 Trading Algorithm Infrastructure**: Framework for users to develop and backtest custom trading strategies with quadratic programming portfolio optimization (educational/research purposes, not trading advice)
 - **🤖 AI Integration**: Pluggable LLM providers (OpenAI, Claude, Local models)
 - **⚡ High Performance**: C++ services with Python data pipeline
 - **🔧 Flexible Deployment**: Single desktop to distributed multi-server
@@ -110,6 +117,7 @@ PostgreSQL Database (Stock/Crypto data, SEC filings, News/Sentiment, AI summarie
 | **Services** | C++ 17/20 + gRPC | High-performance microservices |
 | **Pipeline** | Python 3.11+ | ETL processes and data management |
 | **AI/ML** | OpenAI, Claude, Llama | Document analysis and summarization |
+| **Optimization** | SciPy, CVXPY | Quadratic programming for portfolio optimization |
 | **Database** | PostgreSQL 15+ | Time-series and document storage |
 
 ## 📈 **Sample UI Layouts**
@@ -169,6 +177,26 @@ PostgreSQL Database (Stock/Crypto data, SEC filings, News/Sentiment, AI summarie
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### Portfolio Optimization Tab (Educational/Research)
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Portfolio Optimization & Allocation           │
+├─────────────────────────────────────────────────────────────┤
+│ Templates: Conservative (40/30/30) │ Current Allocation:    │
+│ • 40% Domestic  • 30% International│ Domestic:  36% ▼      │
+│ • 30% Bonds                         │ Intl:      28% ▼      │
+│                                     │ Bonds:     36% ▲      │
+│ Rebalancing: ● Quarterly ○ Monthly │                       │
+│ Next Scheduled: Jan 1, 2026         │ Drift: 2.3% (< 5%)   │
+│                                     │                       │
+│ Quadratic Programming Results:      │ Rebalancing Needed:   │
+│ Expected Return: 8.4%               │ ⚠️ EDUCATIONAL USE     │
+│ Expected Risk:   12.1%              │   NOT ADVICE          │
+│ Sharpe Ratio:    0.69               │ [🔄 Optimize]         │
+│ [📊 Efficient Frontier Chart]       │ [⚙️ Schedule Setup]   │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ## 📋 **Project Documentation**
 
 This project maintains comprehensive documentation across three integrated files:
@@ -183,7 +211,14 @@ This project maintains comprehensive documentation across three integrated files
 
 - **Development**: Python 3.11+, Qt 6, PostgreSQL 15+, CMake 3.20+
 - **System**: 16GB+ RAM, 100GB+ disk space, multi-core CPU recommended
+- **Platform**: Linux (Ubuntu) primary development platform
 - **APIs**: SEC EDGAR access (free), AI provider keys (optional)
+
+### **Platform Support**
+- **✅ Linux (Ubuntu)**: Primary development and testing platform
+- **🔄 Windows (WSL)**: Validation and testing planned for future releases
+- **🔄 macOS**: Support validation planned for future releases
+- **📱 Mobile**: Not currently planned (desktop-focused financial platform)
 
 ## 📦 **Installation**
 
@@ -250,6 +285,10 @@ Stockie supports multiple AI providers for SEC filing analysis and news sentimen
 - **Anthropic Claude**: Balanced performance and cost
 - **Local Llama**: Privacy-focused, runs offline
 - **Custom Models**: Specialized financial domain models
+
+### **Future AI Considerations**
+- **Model Context Protocol (MCP)**: Exploring integration for enhanced AI tool connectivity and financial data access patterns
+- **Agent Frameworks**: Considering integration with AI agent systems for automated financial analysis workflows
 
 Configure in `config/settings-dev.yaml`:
 ```yaml
