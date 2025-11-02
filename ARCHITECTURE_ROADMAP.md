@@ -717,104 +717,111 @@ This section provides the current task-level implementation plan, organized by f
    - Update price ingestion and technical indicators to work with crypto data sources
    - No database schema changes needed - existing ticker column handles crypto symbols
 
+3. **Complete type hint coverage** *(Code Quality, 11/21/25)*
+   - Fix missing return type hints in `CalculateIndicators._process()`, `PerformanceIndicators.__init__()`, and inner functions
+   - Add missing parameter type hints in `TrendIndicators.macd()` and `load_stock_prices()`
+   - Ensure proper imports for complex types (`Callable`, `Union`, etc.) where needed
+   - Run mypy or similar type checker to validate completeness and catch type-related issues
+
 ### **C++ Services Infrastructure**
-3. **Build service communication framework** *(Foundation, 11/28/25)*
+4. **Build service communication framework** *(Foundation, 11/28/25)*
    - Implement service communication supporting both shared memory (desktop) and gRPC (distributed deployment)
    - Create abstract communication interface, service discovery, health monitoring, and message passing infrastructure
 
-4. **Implement initial MarketDataService** *(Core Service, 12/5/25)*
+5. **Implement initial MarketDataService** *(Core Service, 12/5/25)*
    - Create C++ service to serve stock price data, technical indicators, and chart data from PostgreSQL
    - Implement caching, data aggregation, and optimized queries for financial charting performance
 
 ### **UI Framework & Visualization**
-5. **Build Qt 6 UI framework foundation** *(Application Structure, 12/12/25)*
+6. **Build Qt 6 UI framework foundation** *(Application Structure, 12/12/25)*
    - Create Qt 6 main application framework with menu system, navigation structure, tab-based content organization
    - Establish status bar, overall UI architecture, and foundation for all subsequent UI components
    - Include stock selection patterns and service integration framework
 
-6. **Build stock price visualization UI** *(Core Feature, 12/19/25)*
+7. **Build stock price visualization UI** *(Core Feature, 12/19/25)*
    - Create Qt 6 UI component for stock price graphs with candlestick toggle and technical indicator overlays (RSI, Bollinger Bands)
    - Validates complete stack: Python → PostgreSQL → C++ Service → Qt UI
    - Focus on real-time chart rendering with indicator overlays
 
 ### **Company Summary Analysis Module**
-7. **Implement SEC filings pipeline** *(Data Foundation, 1/9/26)*
+8. **Implement SEC filings pipeline** *(Data Foundation, 1/9/26)*
    - Implement SEC filings data pipeline (sec_filings.py job) for ~3,500 tickers
    - Download and process 10-K, 10-Q, and 8-K filings for AI-powered analysis
 
-8. **Implement initial CompanyDataService** *(Service Layer, 1/16/26)*
+9. **Implement initial CompanyDataService** *(Service Layer, 1/16/26)*
    - Create C++ service to serve SEC filing data, company summaries, and compressed filing metadata
    - Implement caching, filing retrieval, and summary data serving for company analysis components
 
-9. **Add company summaries to UI** *(AI Processing, 1/23/26)*
+10. **Add company summaries to UI** *(AI Processing, 1/23/26)*
    - Process SEC filing data to generate AI-powered company summaries
    - Create structured business descriptions using AI analysis of fundamental data
 
 ### **Company KPI Analysis Module**
-10. **Generate company KPIs** *(Data Processing, 1/30/26)*
+11. **Generate company KPIs** *(Data Processing, 1/30/26)*
     - Extract key performance indicators from SEC filing data
     - Build on summary work to identify and calculate financial metrics and business KPIs
 
-11. **Extend CompanyDataService with KPI support** *(Service Extension, 2/6/26)*
+12. **Extend CompanyDataService with KPI support** *(Service Extension, 2/6/26)*
     - Extend CompanyDataService to serve KPI data, financial metrics, and trend analysis
     - Add KPI caching, aggregation capabilities, and optimized queries for financial metrics visualization
 
-12. **Add company KPIs to UI** *(UI Enhancement, 2/13/26)*
+13. **Add company KPIs to UI** *(UI Enhancement, 2/13/26)*
     - Update Qt 6 UI to display company KPIs
     - Add KPI visualization components accessing CompanyDataService for financial metrics display
 
 ### **News Intelligence Module**
-13. **Implement news scraping pipeline** *(Data Collection, 2/20/26)*
+14. **Implement news scraping pipeline** *(Data Collection, 2/20/26)*
     - Implement news scraping pipeline (news_scrapers.py) to collect financial news articles related to tracked tickers
     - Match news articles to relevant tickers and store data for sentiment analysis processing
 
-14. **Generate news sentiment analysis** *(AI Processing, 2/27/26)*
+15. **Generate news sentiment analysis** *(AI Processing, 2/27/26)*
     - Process scraped news articles to perform sentiment analysis on ticker-related news
     - Generate sentiment scores (positive, negative, neutral) and confidence metrics aggregated by ticker
 
-15. **Add news sentiment to UI** *(UI Integration, 3/6/26)*
+16. **Add news sentiment to UI** *(UI Integration, 3/6/26)*
     - Update Qt 6 UI to display news sentiment analysis results
     - Add news sentiment visualization components showing recent news, sentiment scores, and sentiment trends
 
 ### **Portfolio Foundation Platform**
-16. **Create portfolio tracking database schema** *(Data Foundation, 3/20/26)*
+17. **Create portfolio tracking database schema** *(Data Foundation, 3/20/26)*
     - Create database schema and tables to track portfolios and their evolution over time
     - Include tables for portfolio definitions, holdings history, transactions, performance metrics, and rebalancing events
 
-17. **Implement backtesting framework** *(Analysis Foundation, 4/3/26)*
+18. **Implement backtesting framework** *(Analysis Foundation, 4/3/26)*
     - Build backtesting framework to test portfolio optimization strategies against historical data
     - Include performance metrics calculation, risk analysis, drawdown analysis, and comparison tools
 
-18. **Implement rebalancing scheduler** *(Automation, 4/10/26)*
+19. **Implement rebalancing scheduler** *(Automation, 4/10/26)*
     - Create automated rebalancing scheduler to periodically review and rebalance portfolios
     - Include configurable rebalancing frequencies and triggers based on target allocations and drift thresholds
 
 ### **Portfolio Optimization Features**
-19. **Implement standard allocation templates** *(Portfolio Management, 4/17/26)*
+20. **Implement standard allocation templates** *(Portfolio Management, 4/17/26)*
     - Create standard portfolio allocation templates (conservative, moderate, aggressive)
     - Predefined asset allocation percentages and risk parameters as starting points for optimization
 
-20. **Implement asset class categorization** *(Classification Framework, 4/24/26)*
+21. **Implement asset class categorization** *(Classification Framework, 4/24/26)*
     - Build asset class categorization framework to classify tickers into categories
     - Enable proper diversification analysis and allocation constraints (domestic equity, international equity, bonds, REITs, commodities, etc.)
 
-21. **Implement quadratic programming library** *(Optimization Engine, 5/8/26)*
+22. **Implement quadratic programming library** *(Optimization Engine, 5/8/26)*
     - Integrate quadratic programming optimization libraries (SciPy/CVXPY) for mean-variance portfolio optimization
     - Implement efficient frontier calculation, risk-return optimization, and constraint handling for portfolio construction
 
 ### **Portfolio UI Integration**
-22. **Add portfolio management to UI** *(Complete Integration, 5/22/26)*
+23. **Add portfolio management to UI** *(Complete Integration, 5/22/26)*
     - Create Qt 6 UI components for portfolio management including portfolio creation, allocation visualization, performance tracking, and rebalancing interfaces
     - Integrate with portfolio database schema and optimization libraries to provide complete portfolio management functionality
 
 ### **Final Integration**
-23. **Validate setup instructions** *(Documentation, 6/5/26)*
+24. **Validate setup instructions** *(Documentation, 6/5/26)*
     - Test and fix installation/setup instructions in README.md for Phase 1 Python environment, database setup, and initial data pipeline execution
     - Address any missing dependencies or configuration issues
+    - Create Python installation script for Linux/Ubuntu systems that: analyzes system resources (memory/CPU cores) and generates appropriate default values for settings files, creates required log directories, handles dynamic database tablespace paths, provides system resource sanity checks, and addresses database security concerns
 
 ### **Roadmap Notes**
-- **Total Tasks**: 23 tasks organized into 8 functional modules
-- **Estimated Timeline**: early June 2026 + 3 months buffer for contingency. With an overall  target date of 1 September 2026.
+- **Total Tasks**: 24 tasks organized into 8 functional modules
+- **Estimated Timeline**: early June 2026 + 3 months buffer for contingency. With an overall target date of 1 September 2026.
 - **Dependencies**: Each task builds logically on previous tasks within and across modules
 - **Flexibility**: Task order can be adjusted based on learning and integration opportunities
 - **Scope**: Focuses on core functionality; advanced features (trading algorithms, voice interface) deferred to future iterations
