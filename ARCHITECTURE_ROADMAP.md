@@ -116,60 +116,60 @@ Benefits: High availability, horizontal scaling, team collaboration
 *Note: This architecture represents the Investment Management Module. Future personal finance modules will integrate using the same modular service-oriented architecture, with additional services for budgeting, tax management, banking integration, etc.*
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                          User Layer                                │
+│                          User Layer                                 │
 ├─────────────────────────────────────────────────────────────────────┤
-│                     Qt C++ Desktop UI                              │
-│  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐    │
-│  │  Stock Charts   │  │  Company Data    │  │  Technical      │    │
-│  │  • Dual Y-Axes  │  │  • 10-K/10-Q     │  │  Analysis       │    │
-│  │  • Candlesticks │  │  • AI Summaries  │  │  • Indicators   │    │
-│  │  • Indicators   │  │  • KPI Trends    │  │  • Oscillators  │    │
-│  └─────────────────┘  └──────────────────┘  └─────────────────┘    │
+│                     Qt C++ Desktop UI                               │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐     │
+│  │  Stock Charts   │  │  Company Data    │  │  Technical      │     │
+│  │  • Dual Y-Axes  │  │  • 10-K/10-Q     │  │  Analysis       │     │
+│  │  • Candlesticks │  │  • AI Summaries  │  │  • Indicators   │     │
+│  │  • Indicators   │  │  • KPI Trends    │  │  • Oscillators  │     │
+│  └─────────────────┘  └──────────────────┘  └─────────────────┘     │
 ├─────────────────────────────────────────────────────────────────────┤
-│                       Services Layer                               │
+│                       Services Layer                                │
 ├─────────────────────────────────────────────────────────────────────┤
-│                    C++ Microservices                               │
-│  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐    │
-│  │ MarketData      │  │ CompanyData      │  │ Portfolio       │    │
-│  │ Service         │  │ Service          │  │ Service         │    │
-│  │ • Real-time     │  │ • Filing         │  │ • Holdings      │    │
-│  │ • Aggregation   │  │   Summaries      │  │ • Performance   │    │
-│  │ • Indicators    │  │ • KPI Analysis   │  │ • Rebalancing   │    │
-│  └─────────────────┘  └──────────────────┘  └─────────────────┘    │
-│              ▲                    ▲                    ▲           │
-│              │         In-Memory/Network Communication │           │
-│              ▼                    ▼                    ▼           │
+│                    C++ Microservices                                │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐     │
+│  │ MarketData      │  │ CompanyData      │  │ Portfolio       │     │
+│  │ Service         │  │ Service          │  │ Service         │     │
+│  │ • Real-time     │  │ • Filing         │  │ • Holdings      │     │
+│  │ • Aggregation   │  │   Summaries      │  │ • Performance   │     │
+│  │ • Indicators    │  │ • KPI Analysis   │  │ • Rebalancing   │     │
+│  └─────────────────┘  └──────────────────┘  └─────────────────┘     │
+│              ▲                    ▲                    ▲            │
+│              │         In-Memory/Network Communication │            │
+│              ▼                    ▼                    ▼            │
 ├─────────────────────────────────────────────────────────────────────┤
-│                      Data Pipeline Layer                           │
+│                      Data Pipeline Layer                            │
 ├─────────────────────────────────────────────────────────────────────┤
-│                    Python ETL Pipelines                            │
-│  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐    │
-│  │ daily.py        │  │ sec_filings.py   │  │ news_scraper.py │    │
-│  │ (Multiple/day)  │  │ (Daily)          │  │ (Multiple/day)  │    │
-│  │ • Stock prices  │  │ • 10-K/10-Q      │  │ • News articles │    │
-│  │ • Crypto prices │  │   downloads      │  │ • Sentiment     │    │
-│  │ • Indicators    │  │ • Compression    │  │   analysis      │    │
-│  │ • Maintenance   │  │ • Metadata       │  │ • Market trends │    │
-│  └─────────────────┘  └──────────────────┘  └─────────────────┘    │
-│              ▼                    ▼                    ▼           │
-│  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐    │
-│  │ LLM Processing  │  │ Data Validation  │  │ Alert System    │    │
-│  │ (On-demand)     │  │ (Continuous)     │  │ (Real-time)     │    │
-│  │ • Document      │  │ • Quality checks │  │ • Price alerts  │    │
-│  │   analysis      │  │ • Data integrity │  │ • News alerts   │    │
-│  │ • Summarization │  │ • Error handling │  │ • Sentiment     │    │
-│  └─────────────────┘  └──────────────────┘  └─────────────────┘    │
-│              ▼                    ▼                    ▼           │
+│                    Python ETL Pipelines                             │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐     │
+│  │ daily.py        │  │ sec_filings.py   │  │ news_scraper.py │     │
+│  │ (Multiple/day)  │  │ (Daily)          │  │ (Multiple/day)  │     │
+│  │ • Stock prices  │  │ • 10-K/10-Q      │  │ • News articles │     │
+│  │ • Crypto prices │  │   downloads      │  │ • Sentiment     │     │
+│  │ • Indicators    │  │ • Compression    │  │   analysis      │     │
+│  │ • Maintenance   │  │ • Metadata       │  │ • Market trends │     │
+│  └─────────────────┘  └──────────────────┘  └─────────────────┘     │
+│              ▼                    ▼                    ▼            │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐     │
+│  │ LLM Processing  │  │ Data Validation  │  │ Alert System    │     │
+│  │ (On-demand)     │  │ (Continuous)     │  │ (Real-time)     │     │
+│  │ • Document      │  │ • Quality checks │  │ • Price alerts  │     │
+│  │   analysis      │  │ • Data integrity │  │ • News alerts   │     │
+│  │ • Summarization │  │ • Error handling │  │ • Sentiment     │     │
+│  └─────────────────┘  └──────────────────┘  └─────────────────┘     │
+│              ▼                    ▼                    ▼            │
 ├─────────────────────────────────────────────────────────────────────┤
-│                       Data Storage Layer                           │
+│                       Data Storage Layer                            │
 ├─────────────────────────────────────────────────────────────────────┤
-│                        PostgreSQL Database                         │
-│  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐    │
-│  │ Market Data     │  │ SEC Filings      │  │ Processed       │    │
-│  │ • stock_prices  │  │ • Raw compressed │  │ • KPI data      │    │
-│  │ • indicators    │  │   filings        │  │ • LLM summaries │    │
-│  │ • company_info  │  │ • Filing metadata│  │ • Cache tables  │    │
-│  └─────────────────┘  └──────────────────┘  └─────────────────┘    │
+│                        PostgreSQL Database                          │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐     │
+│  │ Market Data     │  │ SEC Filings      │  │ Processed       │     │
+│  │ • stock_prices  │  │ • Raw compressed │  │ • KPI data      │     │
+│  │ • indicators    │  │   filings        │  │ • LLM summaries │     │
+│  │ • company_info  │  │ • Filing metadata│  │ • Cache tables  │     │
+│  └─────────────────┘  └──────────────────┘  └─────────────────┘     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -228,201 +228,202 @@ UI ←→ (gRPC/HTTP) ←→ Services ←→ Database
 
 ### **Main Window Layout**
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│ File   View   Portfolio   Analysis   Tools   Help            [AAPL    ▼] │
-├──────────────────────────────────────────────────────────────────────────┤
+┌───────────────────────────────────────────────────────────────────────────┐
+│ File   View   Portfolio   Analysis   Tools   Help            [AAPL    ▼]  │
+├───────────────────────────────────────────────────────────────────────────┤
 │ ┌──────────────────┐ ┌──────────────────────────────────────────────────┐ │
 │ │ Chart Controls   │ │                                                  │ │
 │ │                  │ │               Stock Price Chart                  │ │
 │ │ Chart Type:      │ │                                                  │ │
 │ │ ○ Line Chart     │ │  $180 ┤                               ┌─ RSI     │ │
-│ │ ● Candlesticks   │ │       │    /\      /\                │  100     │ │
-│ │                  │ │  $160 ┤   /  \    /  \    Bollinger │   80     │ │
-│ │ Indicators:      │ │       │  /    \  /    \   Bands     │   60 ─ RSI│ │
-│ │ ☑ SMA(20)        │ │  $140 ┤ /      \/      \ /‾‾‾‾‾‾‾‾‾\ │   40     │ │
-│ │ ☑ Bollinger      │ │       │/                \          \│   20     │ │
-│ │ ☑ RSI            │ │  $120 ┤                  \________/  │    0     │ │
-│ │ ☐ MACD           │ │       └──────────────────────────────┴──────────┘ │
+│ │ ● Candlesticks   │ │       │    /\      /\                │  100      │ │
+│ │                  │ │  $160 ┤   /  \    /  \    Bollinger │   80       │ │
+│ │ Indicators:      │ │       │  /    \  /    \   Bands     │   60 ─ RSI │ │
+│ │ ☑ SMA(20)        │ │  $140 ┤ /      \/      \ /‾‾‾‾‾‾‾‾‾\ │   40      │ │
+│ │ ☑ Bollinger      │ │       │/                \          \│   20       │ │
+│ │ ☑ RSI            │ │  $120 ┤                  \________/  │    0      │ │
+│ │ ☐ MACD           │ │       └──────────────────────────────┴───────────┘ │
 │ │ ☐ Volume         │ │       Jan   Mar   May   Jul   Sep   Nov    2024  │ │
 │ │                  │ │                                                  │ │
 │ │ Time Range:      │ └──────────────────────────────────────────────────┘ │
 │ │ ○ 1M  ○ 3M  ● 1Y │                                                      │
-│ │ ○ 2Y  ○ 5Y  ○ Max│ ┌────────────────────────────────────────────────┐ │
-│ │ ○ Custom:        │ │ [Technical] [Company] [KPIs] [News]            │ │
-│ │   [Start] [End]  │ │ [Algorithms] [Portfolio]                       │ │
-│ └──────────────────┘ │                                                │ │
-│                      │          Tab Content Area                      │ │
-│                      │                                                │ │
-│                      │  (Selected tab shows relevant data/analysis)  │ │
-│                      │                                                │ │
-│                      └────────────────────────────────────────────────┘ │
-├──────────────────────────────────────────────────────────────────────────┤
-│ Status: Connected | Last update: Oct 27, 2025 14:23 EST | AI: GPT-4     │
-└──────────────────────────────────────────────────────────────────────────┘
+│ │ ○ 2Y  ○ 5Y  ○ Max│ ┌──────────────────────────────────────────────────┐ │
+│ │ ○ Custom:        │ │ [Technical] [Company] [KPIs] [News]              │ │
+│ │   [Start] [End]  │ │ [Algorithms] [Portfolio]                         │ │
+│ └──────────────────┘ │                                                  │ │
+│                      │          Tab Content Area                        │ │
+│                      │                                                  │ │
+│                      │  (Selected tab shows relevant data/analysis)     │ │
+│                      │                                                  │ │
+│                      └──────────────────────────────────────────────────┘ │
+├───────────────────────────────────────────────────────────────────────────┤
+│ Status: Connected | Last update: Oct 27, 2025 14:23 EST | AI: GPT-4       │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### **Technical Indicators Tab**
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Technical Analysis Summary                   │
-├─────────────────────────────────────────────────────────────────┤
-│ Trend Indicators:                    Momentum Indicators:      │
-│ ┌─────────────────────────────────┐   ┌─────────────────────────┐ │
+┌──────────────────────────────────────────────────────────────────┐
+│                    Technical Analysis Summary                    │
+├──────────────────────────────────────────────────────────────────┤
+│ Trend Indicators:                    Momentum Indicators:        │
+│ ┌────────────────────────────────┐   ┌─────────────────────────┐ │
 │ │ SMA(20):  $165.23  ↗           │   │ RSI(14):   62.4  ⚠      │ │
 │ │ SMA(50):  $158.91  ↗           │   │ MACD:      1.23  ↗      │ │
 │ │ EMA(12):  $167.45  ↗           │   │ Stoch:     45.2  →      │ │
-│ └─────────────────────────────────┘   └─────────────────────────┘ │
-│                                                                 │
-│ Volatility Indicators:                Volume Indicators:        │
-│ ┌─────────────────────────────────┐   ┌─────────────────────────┐ │
+│ └────────────────────────────────┘   └─────────────────────────┘ │
+│                                                                  │
+│ Volatility Indicators:                Volume Indicators:         │
+│ ┌────────────────────────────────┐   ┌─────────────────────────┐ │
 │ │ BB Upper: $172.50              │   │ Volume:    1.2M  ↓      │ │
 │ │ BB Lower: $155.80              │   │ Avg Vol:   1.8M         │ │
-│ │ ATR:      $8.45                │   │ OBV:       +125K ↗     │ │
-│ └─────────────────────────────────┘   └─────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
+│ │ ATR:      $8.45                │   │ OBV:       +125K ↗      │ │
+│ └────────────────────────────────┘   └─────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### **Company Data Tab (AI-Powered)**
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Company Analysis (AI-Generated)             │
-├─────────────────────────────────────────────────────────────────┤
+┌──────────────────────────────────────────────────────────────────┐
+│                    Company Analysis (AI-Generated)               │
+├──────────────────────────────────────────────────────────────────┤
 │ Latest Filing: 10-K 2024 (Filed: Mar 15, 2024) │ [Processing ⟳] │
-│                                                                 │
-│ Business Overview:                                              │
-│ ┌─────────────────────────────────────────────────────────────┐ │
-│ │ Apple Inc. designs, manufactures, and markets consumer     │ │
-│ │ electronics globally. The company has diversified into     │ │
-│ │ services with 22% revenue growth in Services segment.      │ │
-│ │ [AI Summary from latest 10-K filing - GPT-4]              │ │
-│ └─────────────────────────────────────────────────────────────┘ │
-│                                                                 │
-│ Key Risk Factors (AI-Identified):                              │
-│ • Supply chain disruptions in Asia-Pacific region             │
-│ • Increased competition in smartphone market                   │
-│ • Regulatory changes affecting App Store policies             │
-│ • Semiconductor shortages impacting production                 │
-│ • Currency fluctuations in international markets              │
-│                                                                 │
-│ Strategic Initiatives:                                          │
-│ • Expansion into autonomous vehicle technology                  │
-│ • Investment in AR/VR platforms and content                    │
-│ • Carbon neutral goal by 2030 across supply chain            │
-└─────────────────────────────────────────────────────────────────┘
+│                                                                  │
+│ Business Overview:                                               │
+│ ┌──────────────────────────────────────────────────────────────┐ │
+│ │ Apple Inc. designs, manufactures, and markets consumer       │ │
+│ │ electronics globally. The company has diversified into       │ │
+│ │ services with 22% revenue growth in Services segment.        │ │
+│ │ [AI Summary from latest 10-K filing - GPT-4]                 │ │
+│ └──────────────────────────────────────────────────────────────┘ │
+│                                                                  │
+│ Key Risk Factors (AI-Identified):                                │
+│ • Supply chain disruptions in Asia-Pacific region                │
+│ • Increased competition in smartphone market                     │
+│ • Regulatory changes affecting App Store policies                │
+│ • Semiconductor shortages impacting production                   │
+│ • Currency fluctuations in international markets                 │
+│                                                                  │
+│ Strategic Initiatives:                                           │
+│ • Expansion into autonomous vehicle technology                   │
+│ • Investment in AR/VR platforms and content                      │
+│ • Carbon neutral goal by 2030 across supply chain                │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### **KPIs Tab**
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Financial Key Metrics                       │
+│                    Financial Key Metrics                        │
 ├─────────────────────────────────────────────────────────────────┤
-│ Quarterly Trends (Last 8 Quarters):                           │
+│ Quarterly Trends (Last 8 Quarters):                             │
 │ ┌─────────────────────────────────────────────────────────────┐ │
-│ │ Revenue (B):    [📊 Bar chart showing growth]              │ │
-│ │ Net Income (B): [📊 Bar chart showing trends]              │ │
-│ │ EPS:           [📊 Line chart showing progression]         │ │
+│ │ Revenue (B):    [📊 Bar chart showing growth]               │ │
+│ │ Net Income (B): [📊 Bar chart showing trends]               │ │
+│ │ EPS:            [📊 Line chart showing progression]         │ │
 │ └─────────────────────────────────────────────────────────────┘ │
 │                                                                 │
-│ Current Metrics (Q4 2024):              Ratios:               │
-│ ┌─────────────────────────────┐        ┌─────────────────────┐ │
-│ │ Revenue:     $89.5B  (+2.1%)│        │ P/E Ratio:   28.5   │ │
-│ │ Net Income:  $22.9B  (+0.9%)│        │ ROE:         56.2%  │ │
-│ │ EPS:         $1.46   (+0.8%)│        │ ROA:         22.4%  │ │
-│ │ Cash:        $162.1B        │        │ Debt/Equity: 1.85   │ │
-│ └─────────────────────────────┘        └─────────────────────┘ │
+│ Current Metrics (Q4 2024):              Ratios:                 │
+│ ┌─────────────────────────────┐        ┌──────────────────────┐ │
+│ │ Revenue:     $89.5B  (+2.1%)│        │ P/E Ratio:   28.5    │ │
+│ │ Net Income:  $22.9B  (+0.9%)│        │ ROE:         56.2%   │ │
+│ │ EPS:         $1.46   (+0.8%)│        │ ROA:         22.4%   │ │
+│ │ Cash:        $162.1B        │        │ Debt/Equity: 1.85    │ │
+│ └─────────────────────────────┘        └──────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### **News & Sentiment Tab**
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Market News & Sentiment Analysis            │
-├─────────────────────────────────────────────────────────────────┤
-│ Sentiment Overview:                      Latest News (AAPL):   │
+┌────────────────────────────────────────────────────────────────────┐
+│                    Market News & Sentiment Analysis                │
+├────────────────────────────────────────────────────────────────────┤
+│ Sentiment Overview:                      Latest News (AAPL):       │
 │ ┌─────────────────────────────────────┐  ┌───────────────────────┐ │
 │ │ Overall Market: ● Bullish   68%     │  │ 📰 Apple Reports Q4   │ │
 │ │ AAPL Sentiment: ● Positive  72%     │  │    Earnings Beat      │ │
 │ │ Tech Sector:    ● Neutral   52%     │  │    [2 hours ago]      │ │
 │ │                                     │  │                       │ │
-│ │ [📊 Sentiment Trend Chart - 30D]   │  │ 📰 iPhone 16 Sales    │ │
+│ │ [📊 Sentiment Trend Chart - 30D]    │  │ 📰 iPhone 16 Sales    │ │
 │ └─────────────────────────────────────┘  │    Exceed Expectations│ │
 │                                          │    [4 hours ago]      │ │
 │ Recent News Impact:                      │                       │ │
 │ ┌─────────────────────────────────────┐  │ 📰 Supply Chain       │ │
-│ │ Earnings Report:     +$3.20 (2.1%) │  │    Optimization       │ │
-│ │ iPhone Launch News:  +$1.85 (1.2%) │  │    Initiative         │ │
-│ │ Fed Rate Decision:   -$2.10 (1.4%) │  │    [6 hours ago]      │ │
+│ │ Earnings Report:     +$3.20 (2.1%)  │  │    Optimization       │ │
+│ │ iPhone Launch News:  +$1.85 (1.2%)  │  │    Initiative         │ │
+│ │ Fed Rate Decision:   -$2.10 (1.4%)  │  │    [6 hours ago]      │ │
 │ │ [View All Impact Analysis]          │  │                       │ │
 │ └─────────────────────────────────────┘  │ [📊 News Sentiment    │ │
 │                                          │     Impact Chart]     │ │
-│ Key Market Themes (AI-Identified):      │                       │ │
-│ • Earnings season optimism               │ └───────────────────────┘ │
-│ • Federal Reserve policy uncertainty    │                         │
-│ • Technology sector rotation            │ [🔍 Search News Archive] │
-│ • Supply chain normalization            │ [⚙️ Sentiment Settings] │
-└─────────────────────────────────────────────────────────────────┘
+│ Key Market Themes (AI-Identified):       │                       │ │
+│ • Earnings season optimism               └───────────────────────┘ │
+│ • Federal Reserve policy uncertainty                               │
+│ • Technology sector rotation            [🔍 Search News Archive]   │
+│ • Supply chain normalization            [⚙️ Sentiment Settings]    │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ### **Trading Algorithms Tab (Educational/Research)**
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                Algorithm Development & Backtesting             │
-├─────────────────────────────────────────────────────────────────┤
-│ Strategy Library:                        Active Strategy:      │
-│ ┌─────────────────────────────┐         ┌─────────────────────┐ │
-│ │ ○ SMA Crossover (20/50)     │         │ RSI Mean Reversion  │ │
-│ │ ○ RSI Mean Reversion        │         │ [Edit] [Backtest]   │ │
-│ │ ● Custom Strategy #1        │         │                     │ │
-│ │ [+ New Strategy]            │         │ Entry: RSI < 30     │ │
-│ └─────────────────────────────┘         │ Exit:  RSI > 70     │ │
-│                                          │ Risk:  2% per trade │ │
-│ Backtest Results (2019-2024):           │                     │ │
-│ ┌─────────────────────────────────────── │ ⚠️ EDUCATIONAL USE  │ │
-│ │ Total Return:    +24.5%              ▲ │   NOT ADVICE       │ │
-│ │ Sharpe Ratio:    1.23                │ └─────────────────────┘ │
-│ │ Max Drawdown:    -8.4%               │                       │
-│ │ Win Rate:        58.2%               │ [📊 Performance Chart] │
-│ │ [📊 Equity Curve Chart]             │                       │
-│ └─────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│             Algorithm Development & Backtesting              │
+├──────────────────────────────────────────────────────────────┤
+│ Strategy Library:                     Active Strategy:       │
+│ ┌─────────────────────────────┐      ┌─────────────────────┐ │
+│ │ ○ SMA Crossover (20/50)     │      │ RSI Mean Reversion  │ │
+│ │ ○ RSI Mean Reversion        │      │ [Edit] [Backtest]   │ │
+│ │ ● Custom Strategy #1        │      │                     │ │
+│ │ [+ New Strategy]            │      │ Entry: RSI < 30     │ │
+│ └─────────────────────────────┘      │ Exit:  RSI > 70     │ │
+│                                      │ Risk:  2% per trade │ │
+│ Backtest Results (2019-2024):        │                     │ │
+│ ┌─────────────────────────────┐      │ ⚠️ EDUCATIONAL USE  │ │
+│ │ Total Return:    +24.5%▲    │      |    NOT ADVICE       │ │
+│ │ Sharpe Ratio:    1.23       │      └─────────────────────┘ │
+│ │ Max Drawdown:    -8.4%      │                              │
+│ │ Win Rate:        58.2%      │                              │
+│ │ [📊 Equity Curve Chart]     │                              │
+│ │ [📊 Performance Chart]      │                              │
+│ └─────────────────────────────┘                              │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ### **Portfolio Optimization Tab (Educational/Research)**
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                Portfolio Optimization & Allocation             │
+│                Portfolio Optimization & Allocation              │
 ├─────────────────────────────────────────────────────────────────┤
 │ Allocation Templates:                    Current Portfolio:     │
 │ ┌─────────────────────────────┐         ┌─────────────────────┐ │
 │ │ ● Conservative (40/30/30)   │         │ Total: $125,000     │ │
 │ │   • 40% Domestic Stocks     │         │ Domestic:  $45,000  │ │
 │ │   • 30% International       │         │ Intl:      $35,000  │ │
-│ │   • 30% Bonds              │         │ Bonds:     $45,000  │ │
+│ │   • 30% Bonds               │         │ Bonds:     $45,000  │ │
 │ │                             │         │                     │ │
 │ │ ○ Moderate (60/25/15)       │         │ [🔄 Optimize]       │ │
 │ │ ○ Aggressive (80/15/5)      │         │ [📊 Efficient       │ │
 │ │ ○ Custom Template           │         │     Frontier]       │ │
 │ │ [+ Create Template]         │         └─────────────────────┘ │
-│ └─────────────────────────────┘                               │ │
-│                                                                 │ │
-│ Rebalancing Schedule:                    Current Status:        │ │
+│ └─────────────────────────────┘                                 │
+│                                                                 │
+│ Rebalancing Schedule:                    Current Status:        │
 │ ┌─────────────────────────────────────┐ ┌─────────────────────┐ │
 │ │ ● Quarterly (Jan/Apr/Jul/Oct)       │ │ Last: Oct 1, 2025   │ │
 │ │ ○ Monthly (1st of month)            │ │ Next: Jan 1, 2026   │ │
-│ │ ○ Semi-Annual (Jan/Jul)             │ │ Drift: 2.3% above  │ │
+│ │ ○ Semi-Annual (Jan/Jul)             │ │ Drift: 2.3% above   │ │
 │ │ ○ Annual (January)                  │ │ threshold (5%)      │ │
-│ │ ○ Threshold-based (±5% drift)      │ │                     │ │
+│ │ ○ Threshold-based (±5% drift)       │ │                     │ │
 │ │ ○ Manual only                       │ │ [⚙️ Schedule Setup] │ │
 │ └─────────────────────────────────────┘ └─────────────────────┘ │
-│                                                                 │ │
-│ Quadratic Programming Results:           Rebalancing Needed:    │ │
+│                                                                 │
+│ Quadratic Programming Results:           Rebalancing Needed:    │
 │ ┌─────────────────────────────────────┐ ┌─────────────────────┐ │
 │ │ Expected Return:    8.4%            │ │ Sell: $5,000 Dom.   │ │
 │ │ Expected Risk:      12.1%           │ │ Buy:  $3,000 Intl.  │ │
 │ │ Sharpe Ratio:       0.69            │ │ Buy:  $2,000 Bonds  │ │
 │ │ [📊 Risk/Return Chart]              │ │                     │ │
-│ └─────────────────────────────────────┘ │ ⚠️ EDUCATIONAL USE   │ │
-│                                          │   NOT ADVICE        │ │
+│ └─────────────────────────────────────┘ │ ⚠️ EDUCATIONAL USE  │ │
+│                                         │    NOT ADVICE       │ │
 │ Correlation Matrix: [📊 Heat Map]       └─────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -466,23 +467,23 @@ UI ←→ (gRPC/HTTP) ←→ Services ←→ Database
 
 ### **Pluggable AI Provider System**
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    AI Provider Manager                         │
-├─────────────────────────────────────────────────────────────────┤
-│ Provider Registry:                                              │
-│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
-│ │   OpenAI    │ │   Claude    │ │ Local Llama │ │   Custom    │ │
-│ │   GPT-4     │ │ Anthropic   │ │   7B/13B    │ │  Finance    │ │
-│ │ • Premium   │ │ • Balanced  │ │ • Private   │ │  • Fast     │ │
-│ │ • Accurate  │ │ • Reliable  │ │ • Free      │ │ • Specialized│ │
-│ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ │
-│                                                                 │
-│ Selection Logic:                                                │
-│ • Simple queries → Custom finance model (fast, free)           │
-│ • Complex analysis → GPT-4/Claude (comprehensive)              │
-│ • Privacy sensitive → Local Llama (offline)                    │
-│ • Budget constraints → Free models with fallbacks              │
-└─────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                    AI Provider Manager                             │
+├────────────────────────────────────────────────────────────────────┤
+│ Provider Registry:                                                 │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌────────────────┐ │
+│ │   OpenAI    │ │   Claude    │ │ Local Llama │ │ Custom Finance │ │
+│ │   GPT-4     │ │ Anthropic   │ │   7B/13B    │ │                │ │
+│ │ • Premium   │ │ • Balanced  │ │ • Private   │ │ • Fast         │ │
+│ │ • Accurate  │ │ • Reliable  │ │ • Free      │ │ • Specialized  │ │
+│ └─────────────┘ └─────────────┘ └─────────────┘ └────────────────┘ │
+│                                                                    │
+│ Selection Logic:                                                   │
+│ • Simple queries → Custom finance model (fast, free)               │
+│ • Complex analysis → GPT-4/Claude (comprehensive)                  │
+│ • Privacy sensitive → Local Llama (offline)                        │
+│ • Budget constraints → Free models with fallbacks                  │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ### **AI Processing Pipeline**
@@ -696,6 +697,131 @@ Rather than purely sequential development, Stockie employs an iterative approach
 - **Feature Demos**: Regular demonstrations of working functionality
 - **User Testing**: Early access for feedback on UI and functionality
 - **Performance Validation**: Continuous testing with real data volumes
+
+---
+
+## 🎯 **Detailed Implementation Roadmap (Phase 1 Focus)**
+
+This section provides the current task-level implementation plan, organized by functional modules. This roadmap represents our "first stab" at building core functionality and will evolve based on learnings from execution.
+
+> **Note**: This roadmap builds on the Phase 1-5 strategy outlined above, focusing on delivering a complete vertical slice of functionality (data → services → UI) for each major feature area. Advanced features (trading algorithms, voice interface, etc.) are deliberately deferred until after gaining experience with the core architecture.
+
+### **Infrastructure & Core Data**
+1. **Implement dual table swap for stock prices and technical indicators** *(Critical)*
+   - Replace the current VACUUM FULL approach with an efficient dual table swap method for populating technical_indicators table
+   - Create temporary table, calculate all indicators, atomically swap with production table
+   - Essential for production performance and avoiding table locks
+
+2. **Add cryptocurrency ticker support** *(Data Expansion)*
+   - Extend data pipeline to handle crypto tickers (BTC-USD, ETH-USD, etc.) alongside traditional stock tickers
+   - Update price ingestion and technical indicators to work with crypto data sources
+   - No database schema changes needed - existing ticker column handles crypto symbols
+
+### **C++ Services Infrastructure**
+3. **Build service communication framework** *(Foundation)*
+   - Implement service communication supporting both shared memory (desktop) and gRPC (distributed deployment)
+   - Create abstract communication interface, service discovery, health monitoring, and message passing infrastructure
+
+4. **Implement initial MarketDataService** *(Core Service)*
+   - Create C++ service to serve stock price data, technical indicators, and chart data from PostgreSQL
+   - Implement caching, data aggregation, and optimized queries for financial charting performance
+
+### **UI Framework & Visualization**
+5. **Build Qt 6 UI framework foundation** *(Application Structure)*
+   - Create Qt 6 main application framework with menu system, navigation structure, tab-based content organization
+   - Establish status bar, overall UI architecture, and foundation for all subsequent UI components
+   - Include stock selection patterns and service integration framework
+
+6. **Build stock price visualization UI** *(Core Feature)*
+   - Create Qt 6 UI component for stock price graphs with candlestick toggle and technical indicator overlays (RSI, Bollinger Bands)
+   - Validates complete stack: Python → PostgreSQL → C++ Service → Qt UI
+   - Focus on real-time chart rendering with indicator overlays
+
+### **Company Summary Analysis Module**
+7. **Implement SEC filings pipeline** *(Data Foundation)*
+   - Implement SEC filings data pipeline (sec_filings.py job) for ~3,500 tickers
+   - Download and process 10-K, 10-Q, and 8-K filings for AI-powered analysis
+
+8. **Generate company summaries** *(AI Processing)*
+   - Process SEC filing data to generate AI-powered company summaries
+   - Create structured business descriptions using AI analysis of fundamental data
+
+9. **Implement initial CompanyDataService** *(Service Layer)*
+   - Create C++ service to serve SEC filing data, company summaries, and compressed filing metadata
+   - Implement caching, filing retrieval, and summary data serving for company analysis components
+
+10. **Add company summaries to UI** *(UI Integration)*
+    - Update Qt 6 UI to display company summaries
+    - Integrate AI-generated company descriptions via CompanyDataService into visualization framework
+
+### **Company KPI Analysis Module**
+11. **Generate company KPIs** *(Data Processing)*
+    - Extract key performance indicators from SEC filing data
+    - Build on summary work to identify and calculate financial metrics and business KPIs
+
+12. **Extend CompanyDataService with KPI support** *(Service Extension)*
+    - Extend CompanyDataService to serve KPI data, financial metrics, and trend analysis
+    - Add KPI caching, aggregation capabilities, and optimized queries for financial metrics visualization
+
+13. **Add company KPIs to UI** *(UI Enhancement)*
+    - Update Qt 6 UI to display company KPIs
+    - Add KPI visualization components accessing CompanyDataService for financial metrics display
+
+### **News Intelligence Module**
+14. **Implement news scraping pipeline** *(Data Collection)*
+    - Implement news scraping pipeline (news_scrapers.py) to collect financial news articles related to tracked tickers
+    - Match news articles to relevant tickers and store data for sentiment analysis processing
+
+15. **Generate news sentiment analysis** *(AI Processing)*
+    - Process scraped news articles to perform sentiment analysis on ticker-related news
+    - Generate sentiment scores (positive, negative, neutral) and confidence metrics aggregated by ticker
+
+16. **Add news sentiment to UI** *(UI Integration)*
+    - Update Qt 6 UI to display news sentiment analysis results
+    - Add news sentiment visualization components showing recent news, sentiment scores, and sentiment trends
+
+### **Portfolio Foundation Platform**
+17. **Create portfolio tracking database schema** *(Data Foundation)*
+    - Create database schema and tables to track portfolios and their evolution over time
+    - Include tables for portfolio definitions, holdings history, transactions, performance metrics, and rebalancing events
+
+18. **Implement backtesting framework** *(Analysis Foundation)*
+    - Build backtesting framework to test portfolio optimization strategies against historical data
+    - Include performance metrics calculation, risk analysis, drawdown analysis, and comparison tools
+
+### **Portfolio Optimization Features**
+19. **Implement standard allocation templates** *(Portfolio Management)*
+    - Create standard portfolio allocation templates (conservative, moderate, aggressive)
+    - Predefined asset allocation percentages and risk parameters as starting points for optimization
+
+20. **Implement asset class categorization** *(Classification Framework)*
+    - Build asset class categorization framework to classify tickers into categories
+    - Enable proper diversification analysis and allocation constraints (domestic equity, international equity, bonds, REITs, commodities, etc.)
+
+21. **Implement rebalancing scheduler** *(Automation)*
+    - Create automated rebalancing scheduler to periodically review and rebalance portfolios
+    - Include configurable rebalancing frequencies and triggers based on target allocations and drift thresholds
+
+22. **Implement quadratic programming library** *(Optimization Engine)*
+    - Integrate quadratic programming optimization libraries (SciPy/CVXPY) for mean-variance portfolio optimization
+    - Implement efficient frontier calculation, risk-return optimization, and constraint handling for portfolio construction
+
+### **Portfolio UI Integration**
+23. **Add portfolio management to UI** *(Complete Integration)*
+    - Create Qt 6 UI components for portfolio management including portfolio creation, allocation visualization, performance tracking, and rebalancing interfaces
+    - Integrate with portfolio database schema and optimization libraries to provide complete portfolio management functionality
+
+### **Final Integration**
+24. **Validate setup instructions** *(Documentation)*
+    - Test and fix installation/setup instructions in README.md for Phase 1 Python environment, database setup, and initial data pipeline execution
+    - Address any missing dependencies or configuration issues
+
+### **Roadmap Notes**
+- **Total Tasks**: 24 tasks organized into 8 functional modules
+- **Estimated Timeline**: end May 2026 + 3 months buffer for contingency. With a target date of 1 September 2026.
+- **Dependencies**: Each task builds logically on previous tasks within and across modules
+- **Flexibility**: Task order can be adjusted based on learning and integration opportunities
+- **Scope**: Focuses on core functionality; advanced features (trading algorithms, voice interface) deferred to future iterations
 
 ---
 
