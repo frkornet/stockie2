@@ -75,11 +75,13 @@ class TestTickers:
 
     @patch("stockie.util.tickers.pd.read_html")
     def test_get_sp500_tickers(self, mock_read_html, mock_logger, ticker_config_all_true):
-        mock_df = pd.DataFrame({"Symbol": ["AAPL", "MSFT", "GOOGL"]})
-        mock_read_html.return_value = [mock_df]
+        # Mock a table with 503 rows (typical S&P 500 count) that will match our logic
+        mock_df = pd.DataFrame({"Symbol": ["AAPL", "MSFT", "GOOGL"] + ["TEST"] * 500})
+        # Mock multiple tables like real Wikipedia page - table 1 has the S&P 500 data
+        mock_read_html.return_value = [pd.DataFrame(), mock_df]  # Empty table 0, S&P data in table 1
 
         tickers = Tickers(mock_logger, ticker_config_all_true)
-        assert tickers.sp500_tickers == ["AAPL", "MSFT", "GOOGL"]
+        assert tickers.sp500_tickers == ["AAPL", "MSFT", "GOOGL"] + ["TEST"] * 500
 
     def test_get_dow30_tickers(self, mock_logger, ticker_config_all_true):
         tickers = Tickers(mock_logger, ticker_config_all_true)

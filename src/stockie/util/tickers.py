@@ -101,7 +101,14 @@ class Tickers:
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         tables = pd.read_html(StringIO(response.text))
-        return tables[0]["Symbol"].tolist()
+        
+        # Look for table with S&P 500 count (500-510 rows) and Symbol column
+        for table in tables:
+            if 500 <= table.shape[0] <= 510 and 'Symbol' in table.columns:
+                return table["Symbol"].tolist()
+        
+        # Fallback to table 1 if the above doesn't work
+        return tables[1]["Symbol"].tolist()
 
     def _get_nasdaq_tickers(self) -> List[str]:
         url = "ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqlisted.txt"
