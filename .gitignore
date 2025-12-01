@@ -11,3 +11,6 @@ __pycache__/
 *.csv
 .python-version
 .DS_Store
+
+# CFP study materials
+CFP study resources/*.pdf
