@@ -44,10 +44,13 @@ objects will be added to the command line interface.
 import argparse
 import sys
 import logging
+import os
 
 from stockie.db.database_connection import DatabaseConnection
 from stockie.db.creators import CreateDatabase, CreateTablespaces, CreateSchema
 from stockie.db.droppers import DropDatabase, DropTablespaces, DropSchema
+from stockie.loaders.config_loader import ConfigLoader
+from stockie.log.custom_logger import CustomLogger
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -57,6 +60,7 @@ def parse_arguments() -> argparse.Namespace:
     # Positional arguments
     parser.add_argument('action', help='Action to perform (create or drop)')
     parser.add_argument('action_object', help='Object to perform action on (database)')
+    parser.add_argument('--config-dir', required=True, help='Configuration directory path')
 
     # Database connection parameters
     parser.add_argument('--host', default='localhost', help='Database host (default: localhost)')
@@ -76,13 +80,17 @@ def parse_arguments() -> argparse.Namespace:
 def validate_arguments(action: str, action_object: str, args: argparse.Namespace) -> None:
     """Validate command line arguments."""
 
+    if not os.path.isdir(args.config_dir):
+        print(f"Error: Configuration directory does not exist: {args.config_dir}")
+        sys.exit(1)
+
     if action == 'create' and action_object == 'database':
         if not args.data_path or not args.index_path:
-            logging.error("Both data and index paths are required for creating stockie database")
+            print("Both data and index paths are required for creating stockie database")
             sys.exit(1)
     
 
-def create_stockie_database(args: argparse.Namespace) -> None:
+def create_stockie_database(args: argparse.Namespace, logger: logging.Logger) -> None:
     """Create a stockie database using the provided CLI arguments."""
 
     admin_connection = DatabaseConnection(
@@ -90,21 +98,24 @@ def create_stockie_database(args: argparse.Namespace) -> None:
         port=args.port,
         dbname='postgres',
         user=args.admin_user,
-        password=args.admin_password
+        password=args.admin_password,
+        logger=logger
     )
 
     CreateDatabase(
         database_connection=admin_connection,
         database=args.database,
         user=args.user,
-        password=args.password
+        password=args.password,
+        logger=logger
     )    
 
     CreateTablespaces(
         database_connection=admin_connection,
         user=args.user,
         data_path=args.data_path,
-        index_path=args.index_path
+        index_path=args.index_path,
+        logger=logger
     )
 
     admin_connection.disconnect()
@@ -113,17 +124,19 @@ def create_stockie_database(args: argparse.Namespace) -> None:
         port=args.port,
         dbname=args.database,
         user=args.user,
-        password=args.password
+        password=args.password,
+        logger=logger
     )
 
     CreateSchema(
         database_connection=user_connection,
-        owner=args.user
+        owner=args.user,
+        logger=logger
     )
     
     user_connection.disconnect()
 
-def drop_stockie_database(args: argparse.Namespace) -> None:
+def drop_stockie_database(args: argparse.Namespace, logger: logging.Logger) -> None:
     """Drop a stockie database using the provided CLI arguments."""
 
     user_connection = DatabaseConnection(
@@ -131,11 +144,13 @@ def drop_stockie_database(args: argparse.Namespace) -> None:
         port=args.port,
         dbname=args.database,
         user=args.user,
-        password=args.password
+        password=args.password,
+        logger=logger
     )
 
     DropSchema(
         database_connection=user_connection,
+        logger=logger
     )
 
     user_connection.disconnect()
@@ -144,18 +159,21 @@ def drop_stockie_database(args: argparse.Namespace) -> None:
         port=args.port,
         dbname='postgres',
         user=args.admin_user,
-        password=args.admin_password
+        password=args.admin_password,
+        logger=logger
     )
 
     DropTablespaces(
         database_connection=admin_connection,
-        owner=args.user
+        owner=args.user,
+        logger=logger
     )
 
     DropDatabase(
         database_connection=admin_connection,
         database=args.database,
-        user=args.user
+        user=args.user,
+        logger=logger
     )
 
     admin_connection.disconnect()
@@ -167,15 +185,40 @@ def cli_processor() -> None:
     action_object = args.action_object
     validate_arguments(action, action_object, args)
 
+    # Load configuration and initialize logger
+    config = ConfigLoader(args.config_dir).get()
+    cli_config = config.get('cli', {})
+    
+    log_filename = cli_config.get('log_filename', '/tmp/stockie_cli.log')
+    log_level = cli_config.get('log_level', 'INFO')
+    console = cli_config.get('console', True)
+    
+    # Extract log directory from log filename
+    log_dir = os.path.dirname(log_filename)
+    log_file = os.path.basename(log_filename)
+    
+    custom_logger = CustomLogger(
+        name='stockie.cli',
+        log_to_console=console,
+        log_level=log_level,
+        log_dir=log_dir,
+        log_filename=log_file
+    )
+    logger = custom_logger.get_logger()
+    
+    logger.info(f"Starting CLI: {action} {action_object}")
+
     commands = { 
-        ('create', 'database'):create_stockie_database, 
+        ('create', 'database'): create_stockie_database, 
         ('drop', 'database'): drop_stockie_database 
     }
     for cmd in commands.keys():
         if action == cmd[0] and action_object == cmd[1]:
-            commands[cmd](args)
+            commands[cmd](args, logger)
+            logger.info(f"Completed CLI: {action} {action_object}")
             return
 
+    logger.error(f"Invalid {action=} or {action_object=}. Supported actions: create database, drop database")
     print(f"Invalid {action=} or {action_object=}. Supported actions: create database, drop database")
     sys.exit(1)
 
@@ -187,13 +230,15 @@ if __name__ == "__main__":
     index tablespace).
 
     # create stockie database
-    python stockie create database --database abc_db \
+    python stockie create database --config-dir /mnt/repos/stockie/config \
+        --database abc_db \
         --admin-user abc_admin --admin-password abc_admin \
         --user abc --password abc \
         --data-path /mnt/pgdb/abc/data --index-path /mnt/pgdb/abc/index
 
     # drop stockie database
-    python stockie drop database --database abc_db \
+    python stockie drop database --config-dir /mnt/repos/stockie/config \
+        --database abc_db \
         --admin-user abc_admin --admin-password abc_admin \
         --user abc --password abc
     """

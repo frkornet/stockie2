@@ -17,6 +17,7 @@ class TestParseArguments:
         """Test parsing create database command."""
         test_args = [
             'create', 'database',
+            '--config-dir', '/config',
             '--host', 'testhost',
             '--port', '5433',
             '--database', 'test_db',
@@ -33,6 +34,7 @@ class TestParseArguments:
             
         assert args.action == 'create'
         assert args.action_object == 'database'
+        assert args.config_dir == '/config'
         assert args.host == 'testhost'
         assert args.port == 5433
         assert args.database == 'test_db'
@@ -46,26 +48,39 @@ class TestParseArguments:
 
 class TestValidateArguments:
 
-    def test_validate_create_database_with_paths(self):
+    @patch('os.path.isdir')
+    def test_validate_create_database_with_paths(self, mock_isdir):
         """Test validation passes for create database with paths."""
-        args = Namespace(data_path='/data', index_path='/index')
+        mock_isdir.return_value = True
+        args = Namespace(config_dir='/config', data_path='/data', index_path='/index')
         
         # Should not raise or exit
         validate_arguments('create', 'database', args)
 
-    def test_validate_create_database_missing_paths(self):
+    @patch('os.path.isdir')
+    def test_validate_create_database_missing_paths(self, mock_isdir):
         """Test validation fails for create database without paths."""
-        args = Namespace(data_path=None, index_path=None)
+        mock_isdir.return_value = True
+        args = Namespace(config_dir='/config', data_path=None, index_path=None)
         
         with pytest.raises(SystemExit):
             validate_arguments('create', 'database', args)
 
-    def test_validate_drop_database_no_path_required(self):
+    @patch('os.path.isdir')
+    def test_validate_drop_database_no_path_required(self, mock_isdir):
         """Test validation passes for drop database without paths."""
-        args = Namespace(data_path=None, index_path=None)
+        mock_isdir.return_value = True
+        args = Namespace(config_dir='/config', data_path=None, index_path=None)
         
         # Should not raise or exit
         validate_arguments('drop', 'database', args)
+
+    def test_validate_invalid_config_dir(self):
+        """Test validation fails for invalid config directory."""
+        args = Namespace(config_dir='/nonexistent', data_path='/data', index_path='/index')
+        
+        with pytest.raises(SystemExit):
+            validate_arguments('create', 'database', args)
 
 
 class TestCreateStockieDatabase:
@@ -80,6 +95,7 @@ class TestCreateStockieDatabase:
         mock_admin_conn = MagicMock()
         mock_user_conn = MagicMock()
         mock_db_conn.side_effect = [mock_admin_conn, mock_user_conn]
+        mock_logger = MagicMock()
         
         args = Namespace(
             host='localhost',
@@ -93,17 +109,17 @@ class TestCreateStockieDatabase:
             index_path='/index'
         )
         
-        create_stockie_database(args)
+        create_stockie_database(args, mock_logger)
         
         # Verify connections created
         assert mock_db_conn.call_count == 2
         mock_db_conn.assert_any_call(
-            host='localhost', port=5432, dbname='postgres',
-            user='admin', password='admin_pass'
+            host='localhost', port=5432, user='admin', password='admin_pass',
+            dbname='postgres', logger=mock_logger
         )
         mock_db_conn.assert_any_call(
-            host='localhost', port=5432, dbname='test_db',
-            user='testuser', password='testpass'
+            host='localhost', port=5432, user='testuser', password='testpass',
+            dbname='test_db', logger=mock_logger
         )
         
         # Verify creator classes called
@@ -111,17 +127,20 @@ class TestCreateStockieDatabase:
             database_connection=mock_admin_conn,
             database='test_db',
             user='testuser',
-            password='testpass'
+            password='testpass',
+            logger=mock_logger
         )
         mock_tablespaces.assert_called_once_with(
             database_connection=mock_admin_conn,
             user='testuser',
             data_path='/data',
-            index_path='/index'
+            index_path='/index',
+            logger=mock_logger
         )
         mock_schema.assert_called_once_with(
             database_connection=mock_user_conn,
-            owner='testuser'
+            owner='testuser',
+            logger=mock_logger
         )
         
         # Verify connections disconnected
@@ -141,6 +160,7 @@ class TestDropStockieDatabase:
         mock_user_conn = MagicMock()
         mock_admin_conn = MagicMock()
         mock_db_conn.side_effect = [mock_user_conn, mock_admin_conn]
+        mock_logger = MagicMock()
         
         args = Namespace(
             host='localhost',
@@ -152,31 +172,34 @@ class TestDropStockieDatabase:
             password='testpass'
         )
         
-        drop_stockie_database(args)
+        drop_stockie_database(args, mock_logger)
         
         # Verify connections created
         assert mock_db_conn.call_count == 2
         mock_db_conn.assert_any_call(
-            host='localhost', port=5432, dbname='test_db',
-            user='testuser', password='testpass'
+            host='localhost', port=5432, user='testuser', password='testpass',
+            dbname='test_db', logger=mock_logger
         )
         mock_db_conn.assert_any_call(
-            host='localhost', port=5432, dbname='postgres',
-            user='admin', password='admin_pass'
+            host='localhost', port=5432, user='admin', password='admin_pass',
+            dbname='postgres', logger=mock_logger
         )
         
         # Verify dropper classes called
         mock_drop_schema.assert_called_once_with(
-            database_connection=mock_user_conn
+            database_connection=mock_user_conn,
+            logger=mock_logger
         )
         mock_drop_tablespaces.assert_called_once_with(
             database_connection=mock_admin_conn,
-            owner='testuser'
+            owner='testuser',
+            logger=mock_logger
         )
         mock_drop_db.assert_called_once_with(
             database_connection=mock_admin_conn,
             database='test_db',
-            user='testuser'
+            user='testuser',
+            logger=mock_logger
         )
         
         # Verify connections disconnected
@@ -186,51 +209,83 @@ class TestDropStockieDatabase:
 
 class TestCliProcessor:
 
+    @patch('stockie.cli.__main__.ConfigLoader')
+    @patch('stockie.cli.__main__.CustomLogger')
     @patch('stockie.cli.__main__.parse_arguments')
     @patch('stockie.cli.__main__.validate_arguments')
     @patch('stockie.cli.__main__.create_stockie_database')
-    def test_cli_processor_create_database(self, mock_create, mock_validate, mock_parse):
+    def test_cli_processor_create_database(self, mock_create, mock_validate, 
+                                          mock_parse, mock_custom_logger, mock_config_loader):
         """Test cli_processor calls create_stockie_database."""
         mock_args = Namespace(
             action='create',
             action_object='database',
+            config_dir='/config',
             data_path='/data',
             index_path='/index'
         )
         mock_parse.return_value = mock_args
         
+        # Mock config and logger
+        mock_config = {'cli': {'log_filename': '/tmp/test.log', 'log_level': 'INFO', 'console': True}}
+        mock_config_loader.return_value.get.return_value = mock_config
+        mock_logger_instance = MagicMock()
+        mock_custom_logger.return_value.get_logger.return_value = mock_logger_instance
+        
         cli_processor()
         
         mock_parse.assert_called_once()
         mock_validate.assert_called_once_with('create', 'database', mock_args)
-        mock_create.assert_called_once_with(mock_args)
+        mock_config_loader.assert_called_once_with('/config')
+        mock_create.assert_called_once_with(mock_args, mock_logger_instance)
 
+    @patch('stockie.cli.__main__.ConfigLoader')
+    @patch('stockie.cli.__main__.CustomLogger')
     @patch('stockie.cli.__main__.parse_arguments')
     @patch('stockie.cli.__main__.validate_arguments')
     @patch('stockie.cli.__main__.drop_stockie_database')
-    def test_cli_processor_drop_database(self, mock_drop, mock_validate, mock_parse):
+    def test_cli_processor_drop_database(self, mock_drop, mock_validate, 
+                                        mock_parse, mock_custom_logger, mock_config_loader):
         """Test cli_processor calls drop_stockie_database."""
         mock_args = Namespace(
             action='drop',
-            action_object='database'
+            action_object='database',
+            config_dir='/config'
         )
         mock_parse.return_value = mock_args
+        
+        # Mock config and logger
+        mock_config = {'cli': {'log_filename': '/tmp/test.log', 'log_level': 'INFO', 'console': True}}
+        mock_config_loader.return_value.get.return_value = mock_config
+        mock_logger_instance = MagicMock()
+        mock_custom_logger.return_value.get_logger.return_value = mock_logger_instance
         
         cli_processor()
         
         mock_parse.assert_called_once()
         mock_validate.assert_called_once_with('drop', 'database', mock_args)
-        mock_drop.assert_called_once_with(mock_args)
+        mock_config_loader.assert_called_once_with('/config')
+        mock_drop.assert_called_once_with(mock_args, mock_logger_instance)
 
+    @patch('stockie.cli.__main__.ConfigLoader')
+    @patch('stockie.cli.__main__.CustomLogger')
     @patch('stockie.cli.__main__.parse_arguments')
     @patch('stockie.cli.__main__.validate_arguments')
-    def test_cli_processor_invalid_action(self, mock_validate, mock_parse):
+    def test_cli_processor_invalid_action(self, mock_validate, mock_parse,
+                                         mock_custom_logger, mock_config_loader):
         """Test cli_processor exits on invalid action."""
         mock_args = Namespace(
             action='invalid',
-            action_object='database'
+            action_object='database',
+            config_dir='/config'
         )
         mock_parse.return_value = mock_args
+        
+        # Mock config and logger
+        mock_config = {'cli': {'log_filename': '/tmp/test.log', 'log_level': 'INFO', 'console': True}}
+        mock_config_loader.return_value.get.return_value = mock_config
+        mock_logger_instance = MagicMock()
+        mock_custom_logger.return_value.get_logger.return_value = mock_logger_instance
         
         with pytest.raises(SystemExit):
             cli_processor()

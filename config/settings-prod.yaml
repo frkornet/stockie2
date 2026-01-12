@@ -1,6 +1,11 @@
 start_date: 2000-01-01
 delta_threshold: 0.0001
 
+cli:
+  log_filename: /mnt/log/stockie/prod/stockie_cli.log
+  log_level: INFO
+  console: true
+
 load_stock_prices:
   log_filename: /mnt/log/stockie/prod/load_stock_prices.log
   log_level: INFO
