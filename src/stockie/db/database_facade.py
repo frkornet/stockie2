@@ -1,16 +1,151 @@
 from psycopg2 import sql
-from psycopg2.extras import execute_values, Json
-from collections.abc import Iterable
+from psycopg2.extras import execute_values, Json # type: ignore
 import pandas as pd
 from datetime import date
-from typing import List, Callable, Any, Union
+from typing import Any, List, Callable, Tuple, Union, Optional, TypeVar, ParamSpec
 import psycopg2
+import re
+from stockie.db.schema_definitions import STOCKIE_TABLES, STOCKIE_INDEXES, STOCKIE_TABLESPACES
+
+P = ParamSpec('P')
+R = TypeVar('R')
 
 class DatabaseFacade:
     def __init__(self, conn: psycopg2.extensions.connection) -> None:
         self.conn = conn
         self.cur = conn.cursor()
         self.conn.autocommit = True
+
+    #####################################################
+    ###             Database Helper Methods           ###
+    #####################################################
+
+    @staticmethod
+    def extract_table_name(create_sql: str) -> str:
+        """Extract table name from CREATE TABLE statement."""
+        # Match: CREATE [TEMP|TEMPORARY] TABLE [IF NOT EXISTS] table_name
+        pattern = r'CREATE\s+(?:TEMP(?:ORARY)?\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)'
+        match = re.search(pattern, create_sql, re.IGNORECASE)
+        if match:
+            return match.group(1).strip('"').lower()
+        raise ValueError(f"Could not extract table name from: {create_sql}")
+    
+    @staticmethod
+    def extract_tablespace_name(create_sql: str) -> str:
+        """Extract tablespace name from CREATE TABLESPACE statement."""
+        parts = create_sql.upper().split()
+        tablespace_idx = parts.index('TABLESPACE') + 1
+        # Get the original case name from the original string
+        original_parts = create_sql.split()
+        return original_parts[tablespace_idx].lower()
+    
+    @staticmethod
+    def extract_index_name(create_sql: str) -> str:
+        """Extract index name from CREATE INDEX statement."""
+        # Match: CREATE [UNIQUE] INDEX [IF NOT EXISTS] index_name
+        pattern = r'CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)'
+        match = re.search(pattern, create_sql, re.IGNORECASE)
+        if match:
+            return match.group(1).strip('"').lower()
+        raise ValueError(f"Could not extract index name from: {create_sql}")
+
+    #############################################################
+    ###             Database Administration Methods           ###
+    #############################################################
+
+    ## 
+    ## Helper methods
+    ##
+        
+    def tablespace_exists(self, tablespace_name: str) -> bool:
+        """Check if tablespace exists."""
+        self.cur.execute("""
+            SELECT EXISTS (
+                SELECT FROM pg_tablespace 
+                WHERE spcname = %s
+            );
+        """, (tablespace_name,))
+        result = self.cur.fetchone()
+        return result[0] if result is not None else False
+
+    ## 
+    ## Create methods
+    ##
+
+    def create_user(self, user_name: str, password: str) -> None:
+        """Create database user."""                      
+        query = sql.SQL("CREATE ROLE {} WITH LOGIN PASSWORD {}").format(
+            sql.Identifier(user_name), 
+            sql.Literal(password)
+        )
+        self.cur.execute(query)
+                
+    def create_database(self, database_name: str, owner: str) -> None:
+        """Create database for specified user."""
+        query = sql.SQL("CREATE DATABASE {} WITH OWNER = {}").format(
+            sql.Identifier(database_name), 
+            sql.Identifier(owner)
+        )
+        self.cur.execute(query)
+
+    def create_stockie_tablespaces(self, data_path: str, index_path: str, owner: str) -> None:
+        """Create stockie tablespaces (data and index)."""
+        if not data_path or not index_path:
+            raise ValueError("data_path and index_path parameters are required")
+        
+        if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]*$', owner):
+            raise ValueError("Owner name must be alphanumeric with underscores, starting with a letter")
+
+        for tablespace_sql in STOCKIE_TABLESPACES:
+            if "data_ts" in tablespace_sql:
+                query = tablespace_sql.format(owner, owner, "%s")
+                self.cur.execute(query, (data_path,))
+            elif "index_ts" in tablespace_sql:
+                query = tablespace_sql.format(owner, owner, "%s")
+                self.cur.execute(query, (index_path,))
+            else:
+                raise ValueError(f"Unknown tablespace type in '{tablespace_sql}' - must contain 'data_ts' or 'index_ts'")
+
+    def create_stockie_tables(self,  owner: str) -> None:
+        """Create all stockie tables and indexes."""
+
+        if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]*$', owner):
+            raise ValueError("Owner name must be alphanumeric with underscores, starting with a letter")
+
+        for table_sql in STOCKIE_TABLES:
+            query = table_sql.format(owner, "%s")
+            self.cur.execute(query)
+
+        for index_sql in STOCKIE_INDEXES:
+            query = index_sql.format(owner, "%s")
+            self.cur.execute(query)
+
+    ## 
+    ## Drop methods
+    ##
+
+    def drop_user(self, user_name: str) -> None:
+        """Drop user (assumes user exists)."""
+        #self.cur.execute(sql.SQL("DROP OWNED BY {} CASCADE").format(sql.Identifier(user_name)))
+        self.cur.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(user_name)))
+
+    def drop_database(self, database_name: str) -> None:
+        """Drop database (assumes database exists)."""
+        self.cur.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(database_name)))              
+    
+    def drop_stockie_tablespaces(self, owner: str) -> None:
+        """Drop all stockie tablespaces."""
+        for tablespace_sql in STOCKIE_TABLESPACES:
+            tablespace_name = self.extract_tablespace_name(tablespace_sql).replace('{}', owner)
+            if self.tablespace_exists(tablespace_name):
+                self.cur.execute(sql.SQL("DROP TABLESPACE {}").format(sql.Identifier(tablespace_name)))
+
+    def drop_stockie_tables(self) -> None:
+        """Drop all stockie tables and indexes using CASCADE."""
+        for table_sql in reversed(STOCKIE_TABLES):
+            table_name = self.extract_table_name(table_sql)
+            if self.table_exists(table_name):
+                self.cur.execute(sql.SQL("DROP TABLE {} CASCADE").format(sql.Identifier(table_name)))
 
     #############################################################
     ###                Common database methods                ###
@@ -19,11 +154,6 @@ class DatabaseFacade:
     def table_exists(self, table_names: Union[str, List[str]]) -> bool:
         if isinstance(table_names, str):
             table_names = [table_names]
-        elif not isinstance(table_names, Iterable):
-            raise TypeError("Expected a string or an iterable of strings for table_names")
-
-        if not all(isinstance(name, str) for name in table_names):
-            raise ValueError("All table names must be strings")
 
         placeholders = ','.join(['%s'] * len(table_names))
         self.cur.execute(f"""
@@ -35,21 +165,7 @@ class DatabaseFacade:
         existing = {row[0] for row in self.cur.fetchall()}
         return all(name in existing for name in table_names)
 
-    def truncate_table(self, table_name: str) -> None:
-        """
-        Truncates the specified table.
-        """
-        if not isinstance(table_name, str):
-            raise TypeError("Table name must be a string.")
-        try:
-            with self.conn.cursor() as cur:
-                cur.execute(sql.SQL("TRUNCATE TABLE {}").format(sql.Identifier(table_name)))
-            self.conn.commit()
-        except Exception as e:
-            self.conn.rollback()
-            raise RuntimeError(f"Failed to truncate table '{table_name}': {e}")
-
-    def with_transaction(self, func: Callable, *args, **kwargs) -> Any:
+    def with_transaction(self, func: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> R:
         """
         Execute a function within a transaction with automatic rollback on error.
         
@@ -81,7 +197,7 @@ class DatabaseFacade:
         finally:
             self.conn.autocommit = original_autocommit
 
-    def vacuum_full_table(self, table_name: str) -> dict:
+    def vacuum_full_table(self, table_name: str) -> dict[str, Any]:
         """
         Perform VACUUM FULL on specified table to reclaim space from dead tuples.
         
@@ -93,7 +209,7 @@ class DatabaseFacade:
         """
         import time
         
-        result = {
+        result: dict[str, Any] = {
             'success': False,
             'duration_seconds': 0,
             'duration_minutes': 0,
@@ -124,7 +240,7 @@ class DatabaseFacade:
     #############################################################
 
     def write_audit_message(self, ticker: str, message: str) -> None:
-                self.cur.execute("""
+        self.cur.execute("""
             INSERT INTO stock_price_audit (ticker, date, message)
             VALUES (%s, CURRENT_DATE, %s)
         """, (ticker, message))
@@ -167,10 +283,9 @@ class DatabaseFacade:
             numeric_columns = ["close", "low", "high", "volume"]
             for col in numeric_columns:
                 if col in df.columns:
-                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                    df[col] = pd.to_numeric(df[col], errors='coerce') #type: ignore
                     
         df.name = ticker
-
         return df
 
     def fetch_price_after_start_date(self, ticker: str, start_date: date) -> pd.DataFrame:
@@ -184,7 +299,7 @@ class DatabaseFacade:
             'close_db', 'adj_close_db', 'volume_db'
         ])
 
-    def get_price_dates(self, ticker: str) -> set:
+    def get_price_dates(self, ticker: str) -> set[date]:
         self.cur.execute("SELECT date FROM stock_prices WHERE ticker = %s", (ticker,))
         return {row[0] for row in self.cur.fetchall()}
 
@@ -195,7 +310,7 @@ class DatabaseFacade:
         """, (ticker, list(dates)))
         self.conn.commit()
 
-    def insert_price_data(self, data: List[tuple]) -> None:
+    def insert_price_data(self, data: List[Tuple[str, date, float, float, float, float, int]]) -> None:
         execute_values(self.cur, """
             INSERT INTO stock_prices (ticker, date, open, high, low, close, volume) 
             VALUES %s
@@ -214,10 +329,7 @@ class DatabaseFacade:
         Parameters:
             df (pd.DataFrame): DataFrame with columns ['ticker', 'indicator', 'date_values']
                              where date_values is a dict of date strings to float values
-        """
-        if not isinstance(df, pd.DataFrame):
-            raise TypeError("Expected a pandas DataFrame with columns: ticker, indicator, date_values")
-        
+        """       
         required_columns = {'ticker', 'indicator', 'date_values'}
         if not required_columns.issubset(df.columns):
             raise ValueError(f"DataFrame must contain columns: {required_columns}")

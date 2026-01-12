@@ -34,6 +34,7 @@ db:
   port: 5432
   dbname: stockie_dev_db
   user: stockie_dev
+  admin_user: stockie_admin
 
 tickers:
   benchmarks: ['SPY']

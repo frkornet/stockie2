@@ -12,7 +12,7 @@ from pathlib import Path
 from stockie.db import DatabaseFacade
 from stockie.loaders.config_loader import ConfigLoader
 from stockie.log.custom_logger import CustomLogger
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Callable
 
 class CalculateIndicators:
     def __init__(self, db_util: DatabaseFacade, config: dict) -> None:
@@ -161,7 +161,7 @@ class CalculateIndicators:
         # Clear the DataFrame after successful save
         self.ticker_indicators_df = self.ticker_indicators_df.iloc[0:0]
 
-    def _process(self, func, ticker: str, params: dict):
+    def _process(self, func: Callable, ticker: str, params: dict) -> None:
         """
         Executes the indicator function and stores the result in the database.
         """
@@ -223,7 +223,7 @@ class CalculateIndicators:
 
         return cache
 
-    def _inject_benchmark_series(self, params: dict, benchmark_data: dict[str, pd.Series]) -> dict:
+    def _inject_benchmark_series(self, params: dict, benchmark_data: dict[str, pd.DataFrame]) -> dict:
         """
         Replaces any 'benchmark'-related string param with its Series from the cache.
         """

@@ -13,23 +13,41 @@ This project maintains comprehensive documentation across four integrated files:
 
 ## 🚀 **Quick Start**
 
-> ⚠️ **Setup Instructions Warning**: The installation and setup instructions below have not been fully tested and may contain errors or missing steps. We are actively working to validate and improve these instructions as part of Phase 1 development and will continue to refine them for each subsequent phase. Please report any issues you encounter.
+> ⚠️ **Setup Instructions Warning**: The installation and setup instructions below have not been fully tested and may contain errors or missing steps. We are actively working to validate and improve these instructions as part of Phase 1 development and will continue to refine them for each subsequent phase. Please report any issues you encounter. The instructions assume that you have postgresQL running on your system. There are no instructtions provided for setting that up.
 
 ```bash
 # Clone and setup
-git clone https://github.com/your-org/stockie2.git
-cd stockie2
+git clone https://github.com/your-org/stockie.git
+cd stockie
 
 # Install Python dependencies
 poetry install && poetry shell
 
+# Installation assumes you have already got postgres running.
+# Manually create postgres admin user and paths for storing <user>_data_ts and 
+# <user>_index_ts tablespaces.
+$ sudo -u postgres psql
+psql# create role '<user>_admin' superuser
+psql# exit
+
+$ sudo -u postgres mkdir -p /mnt/pgdb/<user>/data
+$ sudo -u postgres mkdir -p /mnt/pgdb/<user>/index
+
 # Setup database
+python -m stockie.cli create database --database abc_db --admin-user abc_admin --admin-password abc_admin --user abc --password abc \
+       --data-path /mnt/pgdb/abc/data --index-path /mnt/pgdb/abc/index
 createdb stockie_dev
 psql stockie_dev < db/create_database.sql
 
+# Disable <user>_admin until you need it again. If you need the user again you can enable 
+# the role again with alter role <user>_admin superuser
+$ sudo -u postgres psql
+psql# alter role '<user>_admin' nosuperuser
+psql# exit
+
 # Configure environment
 cp config/settings-dev.yaml.example config/settings-dev.yaml
-# Edit configuration with your database settings
+# Edit configuration file with your database settings and with the indicators you want
 
 # Run initial data pipeline
 python src/stockie/jobs/daily.py --config-dir config
@@ -233,9 +251,28 @@ curl -sSL https://install.python-poetry.org | python3 -
 poetry install
 poetry shell
 
+# Create admin user manually and directories for tablespaces <user>_data_ts and <user>_index_ts
+# Typical user names are stockie or stockie_dev. Typical paths depend on your system
+# NB: after installing the stockie database, you can disable the <user>_admin until you need it
+# again.
+
+$ sudo -u postgres psql
+psql# create role '<user>_admin' with login '<user>_admin' superuser
+psql# exit
+
+$ sudo -u postgres mkdir -p /mnt/pgdb/<user>/data
+$ sudo -u postgres mkdir -p /mnt/pgdb/<user>/index
+
 # Setup database
+python -m stockie.cli create database --database abc_db --admin-user abc_admin --admin-password abc_admin --user abc --password abc \
+       --data-path /mnt/pgdb/abc/data --index-path /mnt/pgdb/abc/index
 createdb stockie_dev
 psql stockie_dev < db/create_database.sql
+
+# Disable <user>_admin. If you need the user again you can enable the role again with alter role <user>_admin superuser
+$ sudo -u postgres psql
+psql# alter role '<user>_admin' nosuperuser
+psql# exit
 ```
 
 ### Configuration
@@ -272,7 +309,7 @@ python tools/perf/performance_test.py --config-dir config
 
 ## 📊 **Performance Metrics**
 
-- **Test Coverage**: 94% (176 tests passing)
+- **Test Coverage**: 95% (231 tests passing)
 - **Chart Loading Target**: <2 seconds for 5-year data
 - **Service Response Target**: <100ms for cached data
 - **Memory Usage**: <4GB typical operation

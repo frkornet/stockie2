@@ -354,7 +354,7 @@ class StockPriceIngestor:
         Returns:
             True if batch processing succeeded, False if it failed
         """
-        def process_ticker(ticker: str, df: pd.DataFrame):
+        def process_ticker(ticker: str, df: pd.DataFrame) -> None:
             """Process a single ticker's data within a transaction."""
             db_df = self.db_facade.fetch_price_after_start_date(ticker, self.start_date)
             

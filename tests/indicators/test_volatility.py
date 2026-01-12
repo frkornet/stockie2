@@ -14,21 +14,21 @@ class TestVolatilityIndicators:
         expected_mid = pd.Series([
             None, None, None, None, 102.0,
             103.0, 104.0, 105.0, 106.0, 107.0
-        ], index=aapl_df.index, name="adx_5_20_mid")
+        ], index=aapl_df.index, name="bollinger_5_20_mid")
 
         expected_upper = pd.Series([
             None,       None,       None,       None, 
             105.162278, 106.162278, 107.162278, 108.162278, 109.162278, 110.162278
-        ], index=aapl_df.index, name="adx_5_20_upper")
+        ], index=aapl_df.index, name="bollinger_5_20_upper")
 
         expected_lower = pd.Series([
             None,      None,      None,       None, 
             98.837722, 99.837722, 100.837722, 101.837722, 102.837722, 103.837722,
-        ], index=aapl_df.index, name="adx_5_20_lower")
+        ], index=aapl_df.index, name="bollinger_5_20_lower")
 
-        pd.testing.assert_series_equal(result["adx_5_20_mid"], expected_mid)
-        pd.testing.assert_series_equal(result["adx_5_20_upper"], expected_upper)
-        pd.testing.assert_series_equal(result["adx_5_20_lower"], expected_lower)
+        pd.testing.assert_series_equal(result["bollinger_5_20_mid"], expected_mid)
+        pd.testing.assert_series_equal(result["bollinger_5_20_upper"], expected_upper)
+        pd.testing.assert_series_equal(result["bollinger_5_20_lower"], expected_lower)
 
     def test_tr_values_tsla(self, tsla_df):
         ind = VolatilityIndicators(tsla_df)

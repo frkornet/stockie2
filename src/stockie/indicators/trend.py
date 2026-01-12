@@ -30,7 +30,7 @@ class TrendIndicators(BaseIndicators):
         result.name = self._build_indicator_name("ema", window)
         return result
 
-    def macd(self, fast_window=12, slow_window=26, signal_window=9) -> pd.DataFrame:
+    def macd(self, fast_window: int=12, slow_window: int=26, signal_window:int =9) -> pd.DataFrame:
         """
         Calculate the Moving Average Convergence Divergence (MACD) indicator.
         

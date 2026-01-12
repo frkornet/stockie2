@@ -15,11 +15,11 @@ class VolatilityIndicators(BaseIndicators):
         upper = ma + num_std * std
         lower = ma - num_std * std
 
-        prefix = self._build_indicator_name("adx", window, int(num_std*10))
+        # TODO: should this be "adx" or "bollinger"?
         return pd.DataFrame({
-            self._build_indicator_name("adx", window, int(num_std*10), "mid"): ma,
-            self._build_indicator_name("adx", window, int(num_std*10), "upper"): upper,
-            self._build_indicator_name("adx", window, int(num_std*10), "lower"): lower
+            self._build_indicator_name("bollinger", window, int(num_std*10), "mid"): ma,
+            self._build_indicator_name("bollinger", window, int(num_std*10), "upper"): upper,
+            self._build_indicator_name("bollinger", window, int(num_std*10), "lower"): lower
         })
 
     def tr(self) -> pd.Series:
