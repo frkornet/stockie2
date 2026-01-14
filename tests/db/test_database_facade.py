@@ -124,6 +124,24 @@ class TestDatabaseFacade:
         with pytest.raises(ValueError, match="Could not extract index name from"):
             DatabaseFacade.extract_index_name(sql)
 
+    def test_validate_sql_identifier_valid(self):
+        """Test that valid identifiers pass validation."""
+        # Should not raise for valid identifiers
+        DatabaseFacade._validate_sql_identifier("valid_name", "test")
+        DatabaseFacade._validate_sql_identifier("user123", "test")
+        DatabaseFacade._validate_sql_identifier("Table_Name_2", "test")
+
+    def test_validate_sql_identifier_invalid(self):
+        """Test that invalid identifiers raise ValueError."""
+        with pytest.raises(ValueError, match="must be alphanumeric"):
+            DatabaseFacade._validate_sql_identifier("table-name", "test")
+        
+        with pytest.raises(ValueError, match="must be alphanumeric"):
+            DatabaseFacade._validate_sql_identifier("123table", "test")
+        
+        with pytest.raises(ValueError, match="must be alphanumeric"):
+            DatabaseFacade._validate_sql_identifier("table; DROP TABLE users;", "test")
+
     #############################################################
     ###                Existence check methods               ###
     #############################################################
@@ -329,9 +347,6 @@ class TestDatabaseFacade:
         assert mock_exists.call_count == table_count
 
 
-
-
-
     #############################################################
     ###                Common database methods                ###
     #############################################################
@@ -412,128 +427,100 @@ class TestDatabaseFacade:
         mock_cursor.execute.assert_called_once()
         assert result is False
 
-    def test_with_transaction_success(self, mock_conn: MagicMock):
-        """Test with_transaction commits on success and restores autocommit."""
-        mock_conn.autocommit = True
-        db_util = DatabaseFacade(mock_conn)
-        
-        # Mock function that will be executed in transaction
-        mock_func = MagicMock(return_value="success")
-        
-        result = db_util.with_transaction(mock_func, "arg1", "arg2", kwarg1="value1")
-        
-        # Verify autocommit was disabled during transaction
-        assert mock_conn.autocommit is True  # restored after transaction
-        mock_conn.commit.assert_called_once()
-        mock_conn.rollback.assert_not_called()
-        mock_func.assert_called_once_with("arg1", "arg2", kwarg1="value1")
-        assert result == "success"
-
-    def test_with_transaction_rollback_on_error(self, mock_conn: MagicMock):
-        """Test with_transaction rolls back on error and restores autocommit."""
-        mock_conn.autocommit = True
-        db_util = DatabaseFacade(mock_conn)
-        
-        # Mock function that raises an exception
-        mock_func = MagicMock(side_effect=ValueError("Test error"))
-        
-        with pytest.raises(ValueError, match="Test error"):
-            db_util.with_transaction(mock_func)
-        
-        # Verify autocommit was restored and rollback was called
-        assert mock_conn.autocommit is True
-        mock_conn.rollback.assert_called_once()
-        mock_conn.commit.assert_not_called()
-
-    @patch('time.time')
-    def test_vacuum_full_table_success(self, mock_time: MagicMock, mock_conn: MagicMock):
-        # Mock time.time() to return predictable values
-        mock_time.side_effect = [1000.0, 1003.5]  # 3.5 second duration
-        
+    def test_rename_table(self, mock_conn: MagicMock):
+        """Test renaming a table."""
         mock_cursor = MagicMock()
-        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        
         db_util = DatabaseFacade(mock_conn)
-        result = db_util.vacuum_full_table('technical_indicators')
+        db_util.cur = mock_cursor
         
-        # Verify SQL execution
+        db_util.rename_table("old_table", "new_table")
+        
         mock_cursor.execute.assert_called_once()
         call_args = mock_cursor.execute.call_args[0][0]
-        # Check if it's a composed SQL object with the correct structure
-        if isinstance(call_args, sql.Composed):
-            # Verify it's composed of SQL("VACUUM FULL ") + Identifier('technical_indicators')
-            assert len(call_args.seq) == 2
-            assert isinstance(call_args.seq[0], sql.SQL)
-            assert call_args.seq[0]._wrapped == "VACUUM FULL "
-            assert isinstance(call_args.seq[1], sql.Identifier)
-            assert call_args.seq[1]._wrapped == ("technical_indicators",)
-        else:
-            assert str(call_args) == "VACUUM FULL technical_indicators"
-        mock_conn.commit.assert_called_once()
-        
-        # Verify result
-        expected_result: dict[str, Any] = {
-            'success': True,
-            'duration_seconds': 3.5,
-            'duration_minutes': 0.1,
-            'error_message': None,
-            'table_name': 'technical_indicators'
-        }
-        assert result == expected_result
+        assert "ALTER TABLE" in str(call_args)
+        assert "RENAME TO" in str(call_args)
 
-    @patch('time.time')
-    def test_vacuum_full_table_failure(self, mock_time, mock_conn: MagicMock):
-        # Mock time.time() for start time
-        mock_time.return_value = 1000.0
-        
+    def test_rename_index(self, mock_conn: MagicMock):
+        """Test renaming an index."""
         mock_cursor = MagicMock()
-        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        mock_cursor.execute.side_effect = Exception("VACUUM failed")
-        
         db_util = DatabaseFacade(mock_conn)
-        result = db_util.vacuum_full_table('test_table')
+        db_util.cur = mock_cursor
         
-        # Verify SQL execution was attempted
+        db_util.rename_index("old_index", "new_index")
+        
         mock_cursor.execute.assert_called_once()
         call_args = mock_cursor.execute.call_args[0][0]
-        # Check if it's a composed SQL object with the correct structure
-        if isinstance(call_args, sql.Composed):
-            # Verify it's composed of SQL("VACUUM FULL ") + Identifier('test_table')
-            assert len(call_args.seq) == 2
-            assert isinstance(call_args.seq[0], sql.SQL)
-            assert call_args.seq[0]._wrapped == "VACUUM FULL "
-            assert isinstance(call_args.seq[1], sql.Identifier)
-            assert call_args.seq[1]._wrapped == ("test_table",)
-        else:
-            assert str(call_args) == "VACUUM FULL test_table"
-        mock_conn.rollback.assert_called_once()
-        
-        # Verify result
-        expected_result = {
-            'success': False,
-            'duration_seconds': 0,
-            'duration_minutes': 0,
-            'error_message': 'VACUUM failed',
-            'table_name': 'test_table'
-        }
-        assert result == expected_result
+        assert "ALTER INDEX" in str(call_args)
+        assert "RENAME TO" in str(call_args)
 
-    @patch('time.time')
-    def test_vacuum_full_table_long_duration(self, mock_time, mock_conn: MagicMock):
-        # Mock time.time() to simulate 2.5 minute duration
-        mock_time.side_effect = [1000.0, 1150.0]  # 150 second duration
-        
+    #############################################################
+    ###     Tests for atomic table swap methods              ###
+    #############################################################
+
+    def test_create_temp_tables(self, mock_conn: MagicMock):
+        """Test creating temporary tables with _temp suffix."""
         mock_cursor = MagicMock()
-        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        
         db_util = DatabaseFacade(mock_conn)
-        result = db_util.vacuum_full_table('large_table')
+        db_util.cur = mock_cursor
         
-        # Verify result has correct timing
-        assert result['success'] is True
-        assert result['duration_seconds'] == 150.0
-        assert result['duration_minutes'] == 2.5
-        assert result['table_name'] == 'large_table'
+        with patch.object(db_util, 'create_stockie_tables') as mock_create:
+            db_util.create_temp_tables("test_owner")
+            
+            mock_create.assert_called_once_with(
+                owner="test_owner",
+                table_filter=['stock_prices', 'technical_indicators'],
+                name_suffix='_temp'
+            )
+
+    def test_atomic_table_swap_success(self, mock_conn: MagicMock):
+        """Test successful atomic table swap."""
+        mock_cursor = MagicMock()
+        db_util = DatabaseFacade(mock_conn)
+        db_util.cur = mock_cursor
+        
+        with patch.object(db_util, 'table_exists', return_value=True), \
+             patch.object(db_util, 'rename_table') as mock_rename_table, \
+             patch.object(db_util, 'drop_stockie_tables') as mock_drop, \
+             patch.object(db_util, 'rename_index') as mock_rename_index, \
+             patch.object(db_util, 'extract_index_name') as mock_extract_index, \
+             patch.object(db_util, '_extract_table_from_index_sql') as mock_extract_table:
+            
+            # Setup mocks for index operations - need values for all 7 STOCKIE_INDEXES
+            # Only stock_prices and technical_indicators indexes will be renamed (4 total)
+            mock_extract_index.side_effect = [
+                'stock_prices_ticker_idx', 'stock_prices_date_idx',
+                'stock_price_audit_ticker_idx', 'stock_price_audit_date_idx',
+                'technical_indicators_ticker_idx', 'technical_indicators_indicator_idx',
+                'technical_indicators_date_values_gin_idx'
+            ]
+            mock_extract_table.side_effect = [
+                'stock_prices', 'stock_prices',
+                'stock_price_audit', 'stock_price_audit',
+                'technical_indicators', 'technical_indicators', 'technical_indicators'
+            ]
+            
+            db_util.atomic_table_swap()
+            
+            # Verify tables were renamed (Phase 1 and 2)
+            assert mock_rename_table.call_count == 4  # 2 tables × 2 phases
+            
+            # Verify old tables were dropped (Phase 3)
+            mock_drop.assert_called_once()
+            
+            # Verify indexes were renamed (Phase 4) - only for stock_prices and technical_indicators
+            assert mock_rename_index.call_count == 5  # 2 stock_prices + 3 technical_indicators indexes
+
+    def test_atomic_table_swap_failure(self, mock_conn: MagicMock):
+        """Test that atomic_table_swap raises RuntimeError on failure."""
+        mock_cursor = MagicMock()
+        db_util = DatabaseFacade(mock_conn)
+        db_util.cur = mock_cursor
+        
+        with patch.object(db_util, 'table_exists', return_value=True), \
+             patch.object(db_util, 'rename_table', side_effect=Exception("DB error")):
+            
+            with pytest.raises(RuntimeError, match="Swap failed during Phase 1"):
+                db_util.atomic_table_swap()
 
     #############################################################
     ### Methods for interacting with stock_price_audit table  ###
@@ -593,12 +580,20 @@ class TestDatabaseFacade:
         db_util = DatabaseFacade(mock_conn)
         df = db_util.fetch_price_data("AAPL")
 
-        mock_cursor.execute.assert_called_once_with("""
-            SELECT date, close, low, high, volume
-            FROM stock_prices
-            WHERE ticker = %s
-            ORDER BY date;
-        """, ("AAPL",))
+        # Verify execute was called once with correct parameters
+        mock_cursor.execute.assert_called_once()
+        sql_arg, params_arg = mock_cursor.execute.call_args[0]
+        
+        # SQL is now a Composed object due to sql.Identifier usage
+        # Verify it's a Composed object and contains expected parts
+        assert isinstance(sql_arg, sql.Composed)
+        sql_str = str(sql_arg)
+        assert "SELECT date, close, low, high, volume" in sql_str
+        assert "FROM" in sql_str
+        assert "stock_prices" in sql_str
+        assert "WHERE ticker = %s" in sql_str
+        assert "ORDER BY date" in sql_str
+        assert params_arg == ("AAPL",)
 
         expected_index = pd.to_datetime(["2023-01-01", "2023-01-02", "2023-01-03"])
         expected_values = [150.0, 151.5, 149.7]
@@ -679,21 +674,27 @@ class TestDatabaseFacade:
         mock_conn.commit.assert_called_once()
 
     @patch("stockie.db.database_facade.execute_values")
-    def test_insert_price_data(self, mock_execute_values, mock_conn: MagicMock):
+    def test_bulk_insert_price_data(self, mock_execute_values, mock_conn: MagicMock):
         db_util = DatabaseFacade(mock_conn)
         data = [
             ("AAPL", date(2023, 1, 1), 100, 110, 90, 105, 10000),
             ("AAPL", date(2023, 1, 2), 106, 112, 95, 110, 12000),
         ]
-        db_util.insert_price_data(data)
+        db_util.bulk_insert_price_data(data)
+        
+        # Verify execute_values was called once
+        mock_execute_values.assert_called_once()
+        
+        # Verify the SQL statement (plain string, hardcoded table name)
         sql_arg = mock_execute_values.call_args[0][1]
         expected_sql = """
-            INSERT INTO stock_prices (ticker, date, open, high, low, close, volume) 
+            INSERT INTO stock_prices_temp (ticker, date, open, high, low, close, volume) 
             VALUES %s
-            ON CONFLICT (ticker, date) DO NOTHING
         """
-
+        
         assert normalize_sql(sql_arg) == normalize_sql(expected_sql)
+        
+        # Verify data parameter
         assert mock_execute_values.call_args[0][2] == data
         mock_conn.commit.assert_called_once()
 

@@ -54,3 +54,5 @@ STOCKIE_TABLESPACES = [
     "CREATE TABLESPACE {}_data_ts OWNER {} LOCATION {}",
     "CREATE TABLESPACE {}_index_ts OWNER {} LOCATION {}"
 ]
+
+ATOMIC_TABLE_SWAP = ['stock_prices', 'technical_indicators']

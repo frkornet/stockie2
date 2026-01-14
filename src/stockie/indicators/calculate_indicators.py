@@ -15,9 +15,15 @@ from stockie.log.custom_logger import CustomLogger
 from typing import List, Dict, Any, Callable
 
 class CalculateIndicators:
-    def __init__(self, db_util: DatabaseFacade, config: dict) -> None:
+    def __init__(self, db_util: DatabaseFacade, config: dict, source_table: str = "stock_prices") -> None:
         """
         Initializes the indicator runner with database access and config.
+
+        Args:
+            db_util: DatabaseFacade instance
+            config: Configuration dictionary
+            source_table: Table to read price data from (default: 'stock_prices',
+                         use 'stock_prices_temp' during daily job bulk load)
 
         Example config["indicators"]:
         {
@@ -34,6 +40,7 @@ class CalculateIndicators:
         }
         """
         self.db_util = db_util
+        self.source_table = source_table
         self.indicator_config = config.get("indicators", {})
 
         log_config = config['calculate_indicators']
@@ -68,7 +75,7 @@ class CalculateIndicators:
         benchmark_data = self._resolve_dependencies(self.indicator_config)
 
         for ticker in tickers:
-            df = self.db_util.fetch_price_data(ticker)
+            df = self.db_util.fetch_price_data(ticker, table_name=self.source_table)
             if df.empty or "close" not in df.columns:
                 continue
 
@@ -129,16 +136,6 @@ class CalculateIndicators:
                 self._save_batch_indicators()
             except Exception as e:
                 self.logger.error(f"Failed to save final batch: {e}")
-
-        # Temporary measure: VACUUM FULL to reclaim TOAST bloat from JSONB updates
-        # TODO: Replace with dual table swap approach for production
-        self.logger.info("Running VACUUM FULL on technical_indicators to reclaim TOAST space...")
-        vacuum_result = self.db_util.vacuum_full_table('technical_indicators')
-        
-        if vacuum_result['success']:
-            self.logger.info(f"VACUUM FULL completed in {vacuum_result['duration_minutes']} minutes")
-        else:
-            self.logger.error(f"VACUUM FULL failed: {vacuum_result['error_message']}")
 
         self.logger.info(f'*** Finished calculate technical indicator run.')
         
@@ -217,7 +214,7 @@ class CalculateIndicators:
 
                 for key, val in opts.items():
                     if "benchmark" in key.lower() and isinstance(val, str) and val not in cache:
-                        df = self.db_util.fetch_price_data(val)
+                        df = self.db_util.fetch_price_data(val, table_name=self.source_table)
                         if not df.empty and "close" in df.columns:
                             cache[val] = df
 
@@ -239,21 +236,25 @@ def chunk_list(lst: List[Any], n: int) -> List[List[Any]]:
     k, m = divmod(len(lst), n)
     return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
 
-def worker(tickers_chunk: List[str], config: Dict[str, Any], part: int) -> None:
+def worker(tickers_chunk: List[str], config: Dict[str, Any], part: int, source_table: str = "stock_prices") -> None:
     """Worker function to run indicator calculations on a chunk of tickers."""
-    db_conn = psycopg2.connect(**config["db"])
+    # Remove admin_user from connection params (it's used elsewhere, not by psycopg2)
+    db_config = {k: v for k, v in config["db"].items() if k != 'admin_user'}
+    db_conn = psycopg2.connect(**db_config)
     db_util = DatabaseFacade(db_conn)
-    runner = CalculateIndicators(db_util, config)
+    runner = CalculateIndicators(db_util, config, source_table=source_table)
     runner.run(tickers_chunk, part)
     db_conn.close()
 
-def calculate_indicators(db_facade: DatabaseFacade, full_config: Dict[str, Any]) -> None:
+def calculate_indicators(db_facade: DatabaseFacade, full_config: Dict[str, Any], source_table: str = "stock_prices") -> None:
     """
     Calculate technical indicators using the provided database facade and configuration.
     
     Args:
         db_facade: DatabaseFacade instance to use
         full_config: Full configuration dictionary
+        source_table: Table to read price data from (default: 'stock_prices',
+                     use 'stock_prices_temp' during daily job bulk load)
     """
     tickers = db_facade.get_unique_tickers()
 
@@ -267,7 +268,7 @@ def calculate_indicators(db_facade: DatabaseFacade, full_config: Dict[str, Any])
         process_list = []
         for i, chunk in enumerate(chunks):
             chunk = sorted(list(set(chunk + benchmarks)))
-            p = multiprocessing.Process(target=worker, args=(chunk, full_config, i))
+            p = multiprocessing.Process(target=worker, args=(chunk, full_config, i, source_table))
             p.start()
             process_list.append(p)
 
@@ -275,6 +276,6 @@ def calculate_indicators(db_facade: DatabaseFacade, full_config: Dict[str, Any])
             p.join()
 
     else:
-        indicator_runner = CalculateIndicators(db_facade, full_config)
+        indicator_runner = CalculateIndicators(db_facade, full_config, source_table=source_table)
         indicator_runner.run(tickers)
 
