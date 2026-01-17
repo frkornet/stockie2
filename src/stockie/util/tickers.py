@@ -18,6 +18,10 @@ class Tickers:
         return self.ticker_config.get("benchmarks", [])
 
     @property
+    def cryptocurrencies(self) -> List[str]:
+        return self.ticker_config.get("cryptocurrencies", [])
+
+    @property
     def nsye_tickers(self) -> List[str]:
         if not self.ticker_config.get("nyse"):
             return []
@@ -67,6 +71,7 @@ class Tickers:
     def all_tickers(self) -> List[str]:
         return sorted(set(
             self.benchmarks +
+            self.cryptocurrencies +
             self.nsye_tickers +
             self.nyse_american_tickers +
             self.nyse_arca_tickers +

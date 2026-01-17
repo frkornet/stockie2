@@ -17,3 +17,12 @@ Date solved:  n/a
 Author:       Frank Kornet
 
 The daily job uses a bulk replace strategy with atomic table swap (WBS-1A). If the job fails after Phase 4 (atomic swap), old data is permanently lost. However, all data can be re-downloaded from yfinance by simply rerunning the daily job. Temp tables are preserved on failure for debugging.
+
+## 0003 - Crypto-Only Daily Runs Not Supported
+
+Date entered: 2026-01-16
+Priority:     Low - deferred
+Date solved:  n/a
+Author:       Frank Kornet
+
+Atomic table swap strategy (WBS-1A) requires loading all tickers to avoid wiping out existing data. Cannot run cryptocurrency-only updates on non-trading days without also fetching stocks. Current implementation loads all tickers (stocks + crypto) on every run. Future enhancement could add conditional logic to INSERT crypto directly on weekends while preserving stock data or store the data in a separate table (outside stock_prices, say in crypto_prices) using a dedicated job.

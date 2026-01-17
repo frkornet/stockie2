@@ -4,7 +4,6 @@ import numpy as np
 import psycopg2
 
 import os
-import json
 import multiprocessing
 
 from importlib import import_module
@@ -260,14 +259,20 @@ def calculate_indicators(db_facade: DatabaseFacade, full_config: Dict[str, Any],
 
     indicator_config = full_config.get("calculate_indicators", {})
     n_processes = indicator_config.get("calculate_processes", 1)
-    
+
+    # process the benchmarks and remove them from the main ticker list
+    benchmarks = full_config.get("tickers", {}).get("benchmarks", [])
+    indicator_runner = CalculateIndicators(db_facade, full_config, source_table=source_table)
+    if benchmarks:
+        indicator_runner.run(benchmarks)
+        tickers = list(set(tickers).difference(set(benchmarks)))
+
     if n_processes > 1:
         chunks = chunk_list(tickers, n_processes)
-        benchmarks = full_config.get("tickers", {}).get("benchmarks", [])
 
         process_list = []
         for i, chunk in enumerate(chunks):
-            chunk = sorted(list(set(chunk + benchmarks)))
+            chunk = sorted(chunk)
             p = multiprocessing.Process(target=worker, args=(chunk, full_config, i, source_table))
             p.start()
             process_list.append(p)

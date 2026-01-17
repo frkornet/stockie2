@@ -170,3 +170,22 @@ class TestTickers:
         }
         tickers = Tickers(mock_logger, config)
         assert tickers.all_tickers == tickers.dow30_tickers
+
+    def test_cryptocurrencies(self, mock_logger):
+        """Test that cryptocurrencies property returns configured crypto tickers"""
+        config = {
+            "tickers": {
+                "benchmarks": ["SPY"],
+                "cryptocurrencies": ["BTC-USD", "ETH-USD", "SOL-USD"],
+                "nyse": False,
+                "nyse_american": False,
+                "nyse_arca": False,
+                "sp500": False,
+                "dow30": False,
+                "nasdaq": False,
+                "nasdaq100": False,
+                "russell2000": False
+            }
+        }
+        tickers = Tickers(mock_logger, config)
+        assert tickers.cryptocurrencies == ["BTC-USD", "ETH-USD", "SOL-USD"]
